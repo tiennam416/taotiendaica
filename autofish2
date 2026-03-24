@@ -1,0 +1,438 @@
+-- 🖥️ CREATE GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = game.CoreGui
+
+local Main = Instance.new("Frame")
+Main.Size = UDim2.new(0, 300, 0, 260)
+Main.Position = UDim2.new(0.5, -130, 0.5, -90)
+Main.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Main.BackgroundTransparency = 0.7
+Main.Active = true
+Main.Draggable = true
+Main.Parent = ScreenGui
+
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
+
+local UIStroke = Instance.new("UIStroke", Main)
+UIStroke.Color = Color3.fromRGB(0, 170, 255)
+
+-- 📦 PADDING (QUAN TRỌNG)
+local Padding = Instance.new("UIPadding")
+Padding.PaddingTop = UDim.new(0, 10)
+Padding.PaddingBottom = UDim.new(0, 10)
+Padding.PaddingLeft = UDim.new(0, 10)
+Padding.PaddingRight = UDim.new(0, 10)
+Padding.Parent = Main
+
+-- 📐 LIST LAYOUT (CHỐNG DÍNH)
+local Layout = Instance.new("UIListLayout")
+Layout.Padding = UDim.new(0, 8)
+Layout.SortOrder = Enum.SortOrder.LayoutOrder
+Layout.Parent = Main
+
+-- 🟢 TITLE
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundTransparency = 1
+Title.Text = "AUTO FISH"
+Title.TextColor3 = Color3.new(1,1,1)
+Title.TextScaled = true
+Title.LayoutOrder = 1
+Title.Parent = Main
+
+-- 🔘 TOGGLE
+local Toggle = Instance.new("TextButton")
+Toggle.Size = UDim2.new(1, 0, 0, 35)
+Toggle.Text = "OFF"
+Toggle.BackgroundColor3 = Color3.fromRGB(170,0,0)
+Toggle.TextColor3 = Color3.new(1,1,1)
+Toggle.LayoutOrder = 2
+Toggle.Parent = Main
+
+Instance.new("UICorner", Toggle)
+
+-- 🔢 FISH COUNT
+local FishText = Instance.new("TextLabel")
+FishText.Size = UDim2.new(1, 0, 0, 25)
+FishText.BackgroundTransparency = 1
+FishText.TextColor3 = Color3.new(1,1,1)
+FishText.Text = "Fish: 0"
+FishText.TextScaled = true
+FishText.LayoutOrder = 3
+FishText.Parent = Main
+--cho cái này xuống dưới
+local DevText = Instance.new("TextLabel")
+DevText.Size = UDim2.new(1, 0, 0, 1)
+DevText.BackgroundTransparency = 1
+DevText.TextColor3 = Color3.new(1,1,1)
+DevText.TextXAlignment = Enum.TextXAlignment.Right
+DevText.Text = "By TienLọ"
+DevText.Size = UDim2.new(1, 0, 0, 20)
+DevText.TextScaled = true
+DevText.LayoutOrder = 5
+DevText.Parent = Main
+
+
+local SellFrame = Instance.new("Frame")
+SellFrame.Size = UDim2.new(1, 0, 0, 35)
+SellFrame.BackgroundTransparency = 1
+SellFrame.LayoutOrder = 4
+SellFrame.Parent = Main
+
+local SellLayout = Instance.new("UIListLayout")
+SellLayout.FillDirection = Enum.FillDirection.Horizontal
+SellLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+SellLayout.Padding = UDim.new(0, 5)
+SellLayout.Parent = SellFrame
+
+local Minus = Instance.new("TextButton")
+Minus.Size = UDim2.new(0, 35, 1, 0)
+Minus.Text = "-"
+Minus.Parent = SellFrame
+
+local SellText = Instance.new("TextLabel")
+SellText.Size = UDim2.new(0, 120, 1, 0)
+SellText.BackgroundTransparency = 1
+SellText.TextColor3 = Color3.new(1,1,1)
+SellText.Text = "Sell at: 5"
+SellText.TextScaled = true
+SellText.Parent = SellFrame
+
+local Plus = Instance.new("TextButton")
+Plus.Size = UDim2.new(0, 35, 1, 0)
+Plus.Text = "+"
+Plus.Parent = SellFrame
+
+Instance.new("UICorner", Minus)
+Instance.new("UICorner", Plus)
+
+local Spacer = Instance.new("Frame")
+Spacer.Size = UDim2.new(1, 0, 0, 30) -- độ cao khoảng trống
+Spacer.BackgroundTransparency = 1
+Spacer.LayoutOrder = 0
+Spacer.Parent = Main
+
+
+-- NÚT ẨN / HIỆN GUI
+local OpenButton = Instance.new("TextButton")
+OpenButton.Size = UDim2.new(0, 40, 0, 40)
+OpenButton.Position = UDim2.new(0, 10, 0.5, -400)
+OpenButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+OpenButton.Text = "LỌ"
+OpenButton.TextColor3 = Color3.new(1,1,1)
+OpenButton.Parent = ScreenGui
+
+Instance.new("UICorner", OpenButton)
+
+-- 🔁 TOGGLE GUI
+local isOpen = true
+
+OpenButton.MouseButton1Click:Connect(function()
+	isOpen = not isOpen
+	Main.Visible = isOpen
+end)
+
+
+
+
+-- ⚙️ BIẾN
+local auto = false
+local sellLimit = 5
+local minimized = false
+
+-- 🔘 TOGGLE
+Toggle.MouseButton1Click:Connect(function()
+	auto = not auto
+	if auto then
+		Toggle.Text = "ON"
+		Toggle.BackgroundColor3 = Color3.fromRGB(0,170,0)
+	else
+		Toggle.Text = "OFF"
+		Toggle.BackgroundColor3 = Color3.fromRGB(170,0,0)
+	end
+end)
+
+-- ➕➖
+Plus.MouseButton1Click:Connect(function()
+	sellLimit += 1
+	SellText.Text = "Sell at: "..sellLimit
+end)
+
+Minus.MouseButton1Click:Connect(function()
+	if sellLimit > 1 then
+		sellLimit -= 1
+		SellText.Text = "Sell at: "..sellLimit
+	end
+end)
+
+
+local player = game:GetService("Players").LocalPlayer
+local gui = player.PlayerGui.MainInterface
+local vim = game:GetService("VirtualInputManager")
+
+local camera = workspace.CurrentCamera
+
+
+local function clickScale(px, py)
+	local viewport = camera.ViewportSize
+	
+
+	-- 🎯 convert pixel gốc (1920x1080) → scale
+	local sx = px / 1920
+	local sy = py / 1080
+
+	local x = viewport.X * sx
+	local y = viewport.Y * sy
+
+	print(x,y)
+
+	vim:SendMouseButtonEvent(x, y, 0, true, game, 0)
+	task.wait(0.1)
+	vim:SendMouseButtonEvent(x, y, 0, false, game, 0)
+end
+
+local movingBar
+local targetBar
+local status
+local startfishing
+local exitfishing
+
+-- 🎣 FIND UI CÂU CÁ
+for _, v in pairs(gui:GetChildren()) do
+	if v.Name == "ImageLabel" then
+		local hasAspect = false
+		local hasStroke = false
+		
+		for _, k in pairs(v:GetChildren()) do
+			if k.Name == "UIAspectRatioConstraint" then
+				hasAspect = true
+			elseif k.Name == "UIStroke" then
+				hasStroke = true
+			end
+		end
+		
+		if hasAspect and hasStroke then
+			movingBar = v:GetChildren()[5]:GetChildren()[3].ImageLabel:GetChildren()[3]
+			targetBar = v:GetChildren()[5]:GetChildren()[3].ImageLabel.ImageLabel
+			exitfishing = v:GetChildren()[7].ImageButton
+			startfishing = v:GetChildren()[4].ImageLabel.ImageButton
+			status = v
+		end
+	end
+end
+
+-- 🛒 FIND SHOP
+local shopfish = nil
+
+for _, vv in pairs(gui:GetChildren()) do 
+	if vv:IsA("Frame") then
+		
+		local frameCount = 0
+		local imageButtonCount = 0
+		local imageLabelCount = 0
+		local textLabelCount = 0
+		local hasStroke = false
+		
+		for _, kk in pairs(vv:GetChildren()) do
+			if kk.Name == "Frame" then
+				frameCount += 1
+			elseif kk.Name == "ImageButton" then
+				imageButtonCount += 1
+			elseif kk.Name == "ImageLabel" then
+				imageLabelCount += 1
+			elseif kk.Name == "TextLabel" then
+				textLabelCount += 1
+			elseif kk.Name == "UIStroke" then
+				hasStroke = true
+			end
+		end
+		
+		if hasStroke
+			and frameCount == 3
+			and imageButtonCount == 2
+			and imageLabelCount == 1
+			and textLabelCount == 1 then
+			
+			shopfish = vv
+			print("Found shopfish:", vv.Name)
+		end
+	end
+end
+
+-- ⚙️ CONFIG
+local countFish = 0
+local selling = false
+
+local FISH_POS = Vector3.new(62.35, 100, -299)
+local SHOP_POS = Vector3.new(98, 107.5, -296.17)
+
+-- 🚶 MOVE
+local JUMP_POS = Vector3.new(72.3, 100, -295.2)
+
+local function moveTo(pos)
+	local char = player.Character or player.CharacterAdded:Wait()
+	local humanoid = char:WaitForChild("Humanoid")
+	local root = char:WaitForChild("HumanoidRootPart")
+
+	-- 🟢 Bước 1: đi tới điểm nhảy
+	humanoid:MoveTo(JUMP_POS)
+
+	while (root.Position - JUMP_POS).Magnitude > 3 do
+		task.wait(0.2)
+	end
+
+	-- 🟡 đợi chạm đất (cực quan trọng)
+	repeat
+	task.wait()
+	until humanoid.FloorMaterial ~= Enum.Material.Air
+
+-- 🟠 nhảy mạnh
+	humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+
+-- đợi bay lên
+	task.wait(0.05)
+	-- 🔵 Bước 3: đi tới đích chính
+	humanoid:MoveTo(pos)
+
+	while (root.Position - pos).Magnitude > 3 do
+		task.wait(0.1)
+	end
+end
+
+-- 🛒 SHOP
+local function openShop()
+	if selling then return end
+	selling = true
+	
+	print("ĐI TỚI SHOP...")
+	moveTo(SHOP_POS)
+	
+	task.wait(1)
+	
+	print("MỞ SHOP...")
+	if shopfish then
+		shopfish.Visible = true
+	end
+	
+	task.wait(2)
+
+	-- 🛒 BÁN CÁ (lặp theo countFish)
+	for i = 1, countFish do
+		print("Selling fish:", i)
+
+		clickScale(833, 430) -- chọn cá
+		task.wait(0.3)
+
+		clickScale(676, 809) -- sell
+		task.wait(0.3)
+
+		clickScale(825, 630) -- confirm
+		task.wait(0.3)
+
+		
+	end
+	
+	-- ❌ tắt shop
+	if shopfish then
+		shopfish.Visible = false
+	end
+	
+	print("QUAY LẠI...")
+	moveTo(FISH_POS)
+	
+	countFish = 0
+	selling = false
+end
+
+-- 📏 CHECK
+local function isClose(a, b)
+	return math.abs(a - b) < 0.01
+end
+
+-- 🎯 FISH STATE
+local fishBiting = false
+local lastFinishClick = 0
+
+local function checkFish()
+	local size = status.Size
+
+	local xS, xO = size.X.Scale, size.X.Offset
+	local yS, yO = size.Y.Scale, size.Y.Offset
+
+	if isClose(xS, 0.14) and xO == 230 then
+		fishBiting = true
+	elseif isClose(xS, 0.185) and xO == 250 then
+		fishBiting = false
+	else
+		fishBiting = false
+	end
+end
+
+local lastClickTime = 0
+
+-- 🔁 LOOP
+while task.wait(0.005) do
+	if not auto then continue end
+	-- 🛑 đang đi shop thì dừng toàn bộ
+	if selling then
+		task.wait(0.1)
+		continue
+	end
+	
+	-- so luong ca
+	if countFish >= sellLimit then
+		openShop()
+		continue
+	end
+	
+	-- 🎣 AUTO START
+	if startfishing and status then
+		if startfishing.Visible and math.abs(status.BackgroundTransparency - 0.4) < 0.01 then
+			
+			clickScale(852, 834)
+			task.wait(1)
+		end
+	end
+
+	checkFish()
+
+	-- ✅ AUTO FINISH
+	if not fishBiting then
+		if isClose(status.Size.X.Scale, 0.185) then
+			if tick() - lastFinishClick > 1 then
+				lastFinishClick = tick()
+				task.wait(0.8)
+				clickScale(1113, 342)
+
+				countFish += 1
+				print("Fish:", countFish)
+				FishText.Text = "Fish: "..countFish				
+			end
+		end
+	end
+
+	-- AUTO FISH
+	if fishBiting and movingBar and targetBar then
+		local xScale = movingBar.Size.X.Scale
+		local center = targetBar.Position.X.Scale
+		local diff = xScale - 1.1*center
+
+		local absPos = movingBar.Parent.AbsolutePosition
+		local absSize = movingBar.Parent.AbsoluteSize
+
+		local x = absPos.X + absSize.X / 2
+		local y = absPos.Y + absSize.Y / 2
+
+		if math.abs(diff) > 0.01 then
+			if diff < 0 then
+				if tick() - lastClickTime > 0.03 then
+					lastClickTime = tick()
+
+					vim:SendMouseButtonEvent(x, y, 0, true, game, 0)
+					task.wait(0.02)
+					vim:SendMouseButtonEvent(x, y, 0, false, game, 0)
+				end
+			end
+		end
+	end
+end
