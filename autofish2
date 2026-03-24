@@ -402,8 +402,10 @@ while task.wait(0.005) do
 			if tick() - lastFinishClick > 1 then
 				lastFinishClick = tick()
 				task.wait(0.8)
-				clickScale(1113, 342)
-
+				--clickScale(1113, 342)
+				vim:SendMouseButtonEvent(1113, 342, 0, true, game, 0)
+				task.wait(0.1)
+				vim:SendMouseButtonEvent(1113, 342, 0, false, game, 0)
 				countFish += 1
 				print("Fish:", countFish)
 				FishText.Text = "Fish: "..countFish				
