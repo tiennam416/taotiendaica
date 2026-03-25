@@ -433,10 +433,13 @@ while task.wait(0.005) do
 	
 	-- 🎣 AUTO START
 	if startfishing and status then
-		if startfishing.Visible and math.abs(status.BackgroundTransparency - 0.4) < 0.01 then	
-			task.wait(0.5)	
+		if startfishing.Visible and math.abs(status.BackgroundTransparency - 0.4) < 0.02 then	
+			task.wait(0.2)	
 			clickScale(852, 834)
-					
+			task.wait(0.2)	
+			clickScale(852, 834)	
+            task.wait(0.2)	
+			clickScale(852, 834)
 		end
 	end
 
@@ -446,16 +449,16 @@ while task.wait(0.005) do
 	if not fishBiting then
 		if isClose(status.Size.X.Scale, 0.185) then
 			if tick() - lastFinishClick > 1 then
-				finishing = true 
+			
 				lastFinishClick = tick()
-				task.wait(1)
-				clickScale(1113, 342)
-
-				countFish += 1
-				print("Fish:", countFish)
-				FishText.Text = "Fish: "..countFish	
-				task.wait(0.2)	
-				finishing = false
+				finishing = true
+pcall(function()
+	task.wait(1)
+	clickScale(1113, 342)
+	countFish += 1
+	FishText.Text = "Fish: "..countFish
+end)
+finishing = false
 			end
 		end
 	end
