@@ -433,13 +433,10 @@ while task.wait(0.005) do
 	
 	-- 🎣 AUTO START
 	if startfishing and status then
-		if startfishing.Visible and math.abs(status.BackgroundTransparency - 0.4) < 0.01 then			
+		if startfishing.Visible and math.abs(status.BackgroundTransparency - 0.4) < 0.01 then	
+			task.wait(0.5)	
 			clickScale(852, 834)
-			task.wait(0.5)
-			clickScale(852, 834)
-			task.wait(0.2)
-			clickScale(852, 834)
-			task.wait(0.2)
+					
 		end
 	end
 
