@@ -12,6 +12,50 @@ Main.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 Main.BackgroundTransparency = 0.2
 Main.Parent = ScreenGui
 
+local UserInputService = game:GetService("UserInputService")
+
+local dragging = false
+local dragInput
+local dragStart
+local startPos
+
+Main.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+	or input.UserInputType == Enum.UserInputType.Touch then
+		
+		dragging = true
+		dragStart = input.Position
+		startPos = Main.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+Main.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+	or input.UserInputType == Enum.UserInputType.Touch then
+		
+		dragInput = input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and input == dragInput then
+		local delta = input.Position - dragStart
+
+		Main.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+-----------------------------
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 
 local UIStroke = Instance.new("UIStroke", Main)
@@ -224,6 +268,7 @@ for _, v in pairs(gui:GetChildren()) do
 	end
 end
 exitfishing.Size = UDim2.new(0.3, 0, 0.3, 0)
+startfishing.Size = UDim2.new(0.2, 0, 0.2, 0)
 -- 🛒 FIND SHOP
 local shopfish = nil
 
@@ -324,13 +369,13 @@ local function openShop()
 		print("Selling fish:", i)
 
 		clickScale(833, 430) -- chọn cá
-		task.wait(0.3)
+		task.wait(0.2)
 
 		clickScale(676, 809) -- sell
-		task.wait(0.3)
+		task.wait(0.2)
 
 		clickScale(825, 630) -- confirm
-		task.wait(0.3)
+		task.wait(0.2)
 
 		
 	end
@@ -388,10 +433,13 @@ while task.wait(0.005) do
 	
 	-- 🎣 AUTO START
 	if startfishing and status then
-		if startfishing.Visible and math.abs(status.BackgroundTransparency - 0.4) < 0.01 then
-			task.wait(1)
+		if startfishing.Visible and math.abs(status.BackgroundTransparency - 0.4) < 0.01 then			
 			clickScale(852, 834)
-			
+			task.wait(0.5)
+			clickScale(852, 834)
+			task.wait(0.2)
+			clickScale(852, 834)
+			task.wait(0.2)
 		end
 	end
 
@@ -401,7 +449,7 @@ while task.wait(0.005) do
 	if not fishBiting then
 		if isClose(status.Size.X.Scale, 0.185) then
 			if tick() - lastFinishClick > 1 then
-			finishing = true -- 🟡 khóa lại
+				finishing = true 
 				lastFinishClick = tick()
 				task.wait(1)
 				clickScale(1113, 342)
@@ -410,7 +458,7 @@ while task.wait(0.005) do
 				print("Fish:", countFish)
 				FishText.Text = "Fish: "..countFish	
 				task.wait(0.2)	
-				finishing = false -- 🔓 mở lại		
+				finishing = false
 			end
 		end
 	end
