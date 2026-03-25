@@ -211,7 +211,7 @@ Minus.MouseButton1Click:Connect(function()
 		SellText.Text = "Sell at: "..sellLimit
 	end
 end)
-
+workspace.Map.Miscs.FishShop.NPC.ProximityPrompt.Enabled = false
 
 local player = game:GetService("Players").LocalPlayer
 local gui = player.PlayerGui.MainInterface
