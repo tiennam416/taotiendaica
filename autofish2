@@ -448,7 +448,7 @@ end
 	-- ✅ AUTO FINISH
 	if not fishBiting then
 		if isClose(status.Size.X.Scale, 0.185) then
-			task.wait(1.0)
+			task.wait(1.8)
 			if tick() - lastFinishClick > 1 then			
 				lastFinishClick = tick()			
 				clickScale(1113, 342)
