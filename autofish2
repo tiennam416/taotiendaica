@@ -355,49 +355,47 @@ end
 local function openShop()
 	if selling then return end
 	selling = true
-	
-	print("ĐI TỚI SHOP...")
-	moveTo(SHOP_POS)
-	
-	task.wait(1)
-	
-	print("MỞ SHOP...")
-	if shopfish then
-		shopfish.Visible = true
-	end
-	
-	task.wait(2)
 
-	-- 🛒 BÁN CÁ (lặp theo countFish)
-	for i = 1, math.floor(countFish / 1.2 )do
-		print("Selling fish:", i)
-        task.wait(0.2)
-		clickScale(833, 430) -- chọn cá
-		task.wait(0.25)
-
-		clickScale(676, 809) -- sell
-		task.wait(0.25)
-
-		clickScale(825, 630) -- confirm
-		task.wait(0.2)
+	local success, err = pcall(function()
+		print("ĐI TỚI SHOP...")
+		moveTo(SHOP_POS)
 		
+		task.wait(1)
+		
+		print("MỞ SHOP...")
+		if shopfish then
+			shopfish.Visible = true
+		end
+		
+		task.wait(2)
+
+		for i = 1, math.floor(countFish / 1.2) do
+			print("Selling fish:", i)
+			task.wait(0.2)
+			clickScale(833, 430)
+			task.wait(0.25)
+
+			clickScale(676, 809)
+			task.wait(0.25)
+
+			clickScale(825, 630)
+			task.wait(0.2)
+		end
+		
+		if shopfish then
+			shopfish.Visible = false
+		end
+		
+		print("QUAY LẠI...")
+		moveTo(FISH_POS)
+	end)
+
+	if not success then
+		warn("Shop error:", err)
 	end
-	
-	-- ❌ tắt shop
-	if shopfish then
-		shopfish.Visible = false
-	end
-	
-	print("QUAY LẠI...")
-	moveTo(FISH_POS)
-	
+
 	countFish = 0
 	selling = false
-end
-
--- 📏 CHECK
-local function isClose(a, b)
-	return math.abs(a - b) < 0.01
 end
 
 -- 🎯 FISH STATE
@@ -437,9 +435,9 @@ while task.wait(0.01) do
 	-- 🎣 AUTO START
 	if startfishing and status then
 		if startfishing.Visible and math.abs(status.BackgroundTransparency - 0.4) < 0.02 then	
-			task.wait(0.8)				
+			task.wait(0.44)		
 			clickScale(852, 834)
-			
+			task.wait(0.2)
 		end
 	end
 
