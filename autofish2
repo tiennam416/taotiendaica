@@ -271,7 +271,7 @@ for _, v in pairs(gui:GetChildren()) do
 		end
 	end
 end
-exitfishing.Size = UDim2.new(0.3, 10, 0.3, 10)
+exitfishing.Size = UDim2.new(0.3, 0, 0.3, 0)
 startfishing.Size = UDim2.new(0.9, 0, 0.9, 10)
 -- 🛒 FIND SHOP
 local shopfish = nil
@@ -448,7 +448,7 @@ while task.wait(0.01) do
 	-- ✅ AUTO FINISH
 	if not fishBiting then
 		if isClose(status.Size.X.Scale, 0.185) then
-			task.wait(1.5)
+			task.wait(1.8)
 			if tick() - lastFinishClick > 1 then			
 				lastFinishClick = tick()			
 				clickScale(1113, 342)
