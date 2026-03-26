@@ -373,10 +373,10 @@ local function openShop()
 		print("Selling fish:", i)
         task.wait(0.2)
 		clickScale(833, 430) -- chọn cá
-		task.wait(0.2)
+		task.wait(0.25)
 
 		clickScale(676, 809) -- sell
-		task.wait(0.2)
+		task.wait(0.25)
 
 		clickScale(825, 630) -- confirm
 		task.wait(0.2)
