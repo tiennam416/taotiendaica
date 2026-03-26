@@ -427,10 +427,10 @@ while task.wait(0.01) do
 	end
 	
 	-- so luong ca
-	if countFish >= sellLimit  then
+	if countFish >= sellLimit and not selling then
 	openShop()
 	continue
-	end
+end
 	
 	-- 🎣 AUTO START
 	if startfishing and status then
