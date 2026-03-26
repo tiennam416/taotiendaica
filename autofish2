@@ -439,7 +439,7 @@ while task.wait(0.01) do
 		if startfishing.Visible and math.abs(status.BackgroundTransparency - 0.4) < 0.02 then	
 			task.wait(0.8)				
 			clickScale(852, 834)
-			task.wait(0.2)
+			
 		end
 	end
 
@@ -448,7 +448,7 @@ while task.wait(0.01) do
 	-- ✅ AUTO FINISH
 	if not fishBiting then
 		if isClose(status.Size.X.Scale, 0.185) then
-			task.wait(1.8)
+			task.wait(1.5)
 			if tick() - lastFinishClick > 1 then			
 				lastFinishClick = tick()			
 				clickScale(1113, 342)
