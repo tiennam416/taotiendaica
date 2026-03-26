@@ -369,7 +369,7 @@ local function openShop()
 	task.wait(2)
 
 	-- 🛒 BÁN CÁ (lặp theo countFish)
-	for i = 1, math.floor(countFish / 1.2 do
+	for i = 1, math.floor(countFish / 1.2 )do
 		print("Selling fish:", i)
         task.wait(0.2)
 		clickScale(833, 430) -- chọn cá
