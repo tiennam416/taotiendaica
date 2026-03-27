@@ -398,7 +398,7 @@ local function openShop()
 	selling = false
 end
 local function isClose(a, b)
-	return math.abs(a - b) < 0.01
+	return math.abs(a - b) < 0.02
 end
 -- 🎯 FISH STATE
  local fishBiting = false 
