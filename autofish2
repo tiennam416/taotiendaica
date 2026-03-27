@@ -480,28 +480,28 @@ end
 	end
 
 	-- AUTO FISH
-	if fishBiting and movingBar and targetBar then
-		local xScale = movingBar.Size.X.Scale
-		local center = targetBar.Position.X.Scale
-		local diff = xScale - 1.1*center
+if fishBiting and movingBar and targetBar then
+	local xScale = movingBar.Size.X.Scale
+	local center = targetBar.Position.X.Scale
+	
+	local diff = center - xScale
 
-		local absPos = movingBar.Parent.AbsolutePosition
-		local absSize = movingBar.Parent.AbsoluteSize
+	local absPos = movingBar.Parent.AbsolutePosition
+	local absSize = movingBar.Parent.AbsoluteSize
 
-		local x = absPos.X + absSize.X / 2
-		local y = absPos.Y + absSize.Y / 2
+	local x = absPos.X + absSize.X / 2
+	local y = absPos.Y + absSize.Y / 2
 
-		if math.abs(diff) > 0.01 then
-			if diff < 0 then
-				if tick() - lastClickTime > 0.03 then
-					lastClickTime = tick()
+	if diff > 0.008 then
+		if tick() - lastClickTime > 0.02 then
+			lastClickTime = tick()
 
-					vim:SendMouseButtonEvent(x, y, 0, true, game, 0)
-					task.wait(0.02)
-					vim:SendMouseButtonEvent(x, y, 0, false, game, 0)
-				end
-			end
+			vim:SendMouseButtonEvent(x, y, 0, true, game, 0)
+			task.wait(0.01)
+			vim:SendMouseButtonEvent(x, y, 0, false, game, 0)
 		end
-    StatusText.Text = "Status: Fishing..."
 	end
+
+	StatusText.Text = "Status: Fishing..."
+end
 end
