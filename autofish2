@@ -163,6 +163,16 @@ DevText.TextXAlignment = Enum.TextXAlignment.Right
 DevText.LayoutOrder = 5
 DevText.Parent = Main
 
+-- 📊 STATUS TEXT
+local StatusText = Instance.new("TextLabel")
+StatusText.Size = UDim2.new(1, 0, 0.12, 0)
+StatusText.BackgroundTransparency = 1
+StatusText.TextColor3 = Color3.fromRGB(0, 255, 200)
+StatusText.Text = "Status: Idle"
+StatusText.TextScaled = true
+StatusText.LayoutOrder = 3.5
+StatusText.Parent = Main
+
 -- 📱 NÚT MỞ GUI
 local OpenButton = Instance.new("TextButton")
 OpenButton.Size = UDim2.new(0.06, 0, 0.1, 0)
@@ -358,10 +368,11 @@ local function openShop()
 
 	local success, err = pcall(function()
 		print("ĐI TỚI SHOP...")
+        StatusText.Text = "Status: Going to shop..."
 		moveTo(SHOP_POS)
 		
 		task.wait(1)
-		
+		StatusText.Text = "Status: Selling..."
 		print("MỞ SHOP...")
 		if shopfish then
 			shopfish.Visible = true
@@ -386,6 +397,7 @@ local function openShop()
 			shopfish.Visible = false
 		end
 		countFish = 0
+        StatusText.Text = "Status: Returning..."
 		print("QUAY LẠI...")
 		moveTo(FISH_POS)
 	end)
@@ -437,7 +449,8 @@ end
 	
 	-- 🎣 AUTO START
 	if startfishing and status then
-		if startfishing.Visible and math.abs(status.BackgroundTransparency - 0.4) < 0.02 then	
+		if startfishing.Visible and math.abs(status.BackgroundTransparency - 0.4) < 0.02 then
+            StatusText.Text = "Status: Waiting to cast..."
 			task.wait(0.44)		
 			clickScale(852, 834)
 			task.wait(0.2)
@@ -449,6 +462,7 @@ end
 	-- ✅ AUTO FINISH
 	if not fishBiting then
 		if isClose(status.Size.X.Scale, 0.185) then
+            StatusText.Text = "Status: Caught!"
 			task.wait(1.8)
 			if tick() - lastFinishClick > 1 then			
 				lastFinishClick = tick()			
@@ -483,5 +497,6 @@ end
 				end
 			end
 		end
+    StatusText.Text = "Status: Fishing..."
 	end
 end
