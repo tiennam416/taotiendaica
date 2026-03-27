@@ -186,7 +186,7 @@ end)
 
 -- ⚙️ BIẾN
 local auto = false
-local sellLimit = 5
+local sellLimit = 10
 local minimized = false
 
 -- 🔘 TOGGLE
@@ -272,7 +272,7 @@ for _, v in pairs(gui:GetChildren()) do
 	end
 end
 exitfishing.Size = UDim2.new(0.3, 0, 0.3, 0)
-startfishing.Size = UDim2.new(0.9, 0, 0.9, 10)
+startfishing.Size = UDim2.new(0.9, 0, 0.9, 8)
 -- 🛒 FIND SHOP
 local shopfish = nil
 
@@ -381,7 +381,7 @@ local function openShop()
 			clickScale(825, 630)
 			task.wait(0.2)
 		end
-		
+		countFish = 0
 		if shopfish then
 			shopfish.Visible = false
 		end
@@ -396,6 +396,7 @@ local function openShop()
 
 	countFish = 0
 	selling = false
+    task.wait(0.5)
 end
 local function isClose(a, b)
 	return math.abs(a - b) < 0.02
