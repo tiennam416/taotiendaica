@@ -482,7 +482,7 @@ end
 	-- AUTO FISH
 if fishBiting and movingBar and targetBar then
 	local xScale = movingBar.Size.X.Scale
-	local center = targetBar.Position.X.Scale
+	local center = targetBar.Position.X.Scale + targetBar.Size.X.Scale / 2
 	
 	local diff = center - xScale
 
