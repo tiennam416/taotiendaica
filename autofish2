@@ -141,7 +141,7 @@ local SellText = Instance.new("TextLabel")
 SellText.Size = UDim2.new(0.5, 0, 1, 0)
 SellText.BackgroundTransparency = 1
 SellText.TextColor3 = Color3.new(1,1,1)
-SellText.Text = "Sell at: 5"
+SellText.Text = "Sell at: 10"
 SellText.TextScaled = true
 SellText.Parent = SellFrame
 
@@ -336,29 +336,34 @@ local function moveTo(pos)
 	local humanoid = char:WaitForChild("Humanoid")
 	local root = char:WaitForChild("HumanoidRootPart")
 
-	-- 🟢 Bước 1: đi tới điểm nhảy
+	-- đi tới jump
 	humanoid:MoveTo(JUMP_POS)
 
+	local t = tick()
 	while (root.Position - JUMP_POS).Magnitude > 3 do
+		if tick() - t > 5 then
+			warn("kẹt JUMP_POS")
+			break
+		end
 		task.wait(0.2)
 	end
 
-	-- 🟡 đợi chạm đất (cực quan trọng)
-	repeat
-	task.wait()
-	until humanoid.FloorMaterial ~= Enum.Material.Air
+	repeat task.wait() until humanoid.FloorMaterial ~= Enum.Material.Air
 
--- 🟠 nhảy mạnh
 	humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-
--- đợi bay lên
 	task.wait(0.05)
-	-- 🔵 Bước 3: đi tới đích chính
+
+	-- đi tới đích
 	humanoid:MoveTo(pos)
 
-	while (root.Position - pos).Magnitude > 3 do
-	task.wait(0.1)
-	end	
+	t = tick()
+	while (root.Position - pos).Magnitude > 5 do -- tăng lên 5 cho dễ tới
+		if tick() - t > 8 then
+			warn("kẹt FISH_POS")
+			break
+		end
+		task.wait(0.1)
+	end
 end
 
 -- 🛒 SHOP
