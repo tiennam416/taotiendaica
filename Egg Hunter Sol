@@ -12,6 +12,69 @@ local RunService = game:GetService("RunService")
 local enabled = false
 local obstacleConnection = nil
 
+--=====================ESP=====================
+
+-- ==================== ESP TRỨNG ====================
+local espEnabled = true
+local espFolder = Instance.new("Folder")
+espFolder.Name = "EggESP"
+espFolder.Parent = workspace
+
+local function createESP(egg)
+    if egg:FindFirstChild("EggHighlight") then return end
+
+    -- Highlight
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "EggHighlight"
+    highlight.FillColor = Color3.fromRGB(255, 255, 0)
+    highlight.OutlineColor = Color3.fromRGB(255, 180, 0)
+    highlight.FillTransparency = 0.35
+    highlight.OutlineTransparency = 0
+    highlight.Adornee = egg
+    highlight.Parent = egg
+
+    -- Billboard (text)
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "EggESPBillboard"
+    billboard.Size = UDim2.new(0, 120, 0, 40)
+    billboard.AlwaysOnTop = true
+    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+    billboard.Parent = egg
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(255, 255, 0)
+    label.TextStrokeTransparency = 0
+    label.TextScaled = true
+    label.Font = Enum.Font.GothamBold
+
+    local num = string.match(egg.Name, "point_egg_(%d+)")
+    label.Text = "🥚 Egg " .. (num or "?")
+
+    label.Parent = billboard
+end
+
+local function scanEggs()
+    if not espEnabled then return end
+
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("MeshPart") and string.find(v.Name, "point_egg_") then
+            createESP(v)
+        end
+    end
+end
+
+-- Auto update ESP
+task.spawn(function()
+    while true do
+        if espEnabled then
+            scanEggs()
+        end
+        task.wait(2)
+    end
+end)
+
 -- ==================== UI ====================
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "EggHunterUI"
@@ -91,7 +154,7 @@ local function startObstacleJump()
     obstacleConnection = RunService.Heartbeat:Connect(function()
         if not enabled or not hrp or not humanoid then return end
 
-        local origin = hrp.Position + Vector3.new(0, 1.6, 0)   -- Từ bụng
+        local origin = hrp.Position + Vector3.new(0, -1.6, 0)   -- Từ bụng
         local forward = hrp.CFrame.LookVector
         local hitDetected = false
 
@@ -147,16 +210,27 @@ local function findBestEgg()
 
     for _, v in pairs(workspace:GetDescendants()) do
         if v:IsA("MeshPart") and string.find(v.Name, "point_egg_") then
+            
+            -- ❌ BỎ QUA TRỨNG Ở VÙNG KHÔNG MONG MUỐN
+            local pos = v.Position
+            if pos.X < 22 and pos.Z < -136 then
+                continue
+            end
+
             local numStr = string.match(v.Name, "point_egg_(%d+)")
             local num = numStr and tonumber(numStr) or 0
+
             if num > bestNumber then
                 bestNumber = num
                 bestEgg = v
             end
         end
     end
+
     return bestEgg
 end
+
+
 
 local function triggerProximityPrompt(egg)
     if not egg then return end
@@ -168,22 +242,74 @@ local function triggerProximityPrompt(egg)
     end
 end
 
+---=============Né Nước,Cây===================================
+local map = workspace:WaitForChild("Map")
+local waterFolder = map:WaitForChild("Miscs"):WaitForChild("WaterBlocks")
+local treeFolder = map:WaitForChild("trees")
+local bossPortal = workspace["Boss Portal"]
+local house = workspace.Map.house
+
+local function applyNoPath(folder, labelName)
+    for _, part in pairs(folder:GetDescendants()) do
+        if part:IsA("BasePart") then
+            if not part:FindFirstChild("NoPath") then
+                local modifier = Instance.new("PathfindingModifier")
+                modifier.Name = "NoPath"
+                modifier.Parent = part
+
+                modifier.PassThrough = false
+                modifier.Label = labelName
+            end
+        end
+    end
+end
+
+applyNoPath(waterFolder, "Water")
+applyNoPath(treeFolder, "Tree")
+applyNoPath(bossPortal, "bossPortal")
+applyNoPath(house, "House")
+
+local currentTargetEgg = nil
+
+
 local function goToBestEgg()
     if not enabled then return end
-    local bestEgg = findBestEgg()
+
+    -- Nếu chưa có target thì mới chọn trứng tốt nhất
+    if not currentTargetEgg or not currentTargetEgg.Parent then
+        currentTargetEgg = findBestEgg()
+    end
+
+    local bestEgg = currentTargetEgg
     if not bestEgg then return end
 
     local dist = (hrp.Position - bestEgg.Position).Magnitude
-    if dist < 8 then
+
+    -- Nếu gần thì nhặt
+    if dist <= 10 then
         triggerProximityPrompt(bestEgg)
+
+        -- ✅ Sau khi nhặt xong → reset target để chọn trứng mới (lúc này mới ưu tiên trứng lớn hơn)
+        currentTargetEgg = nil
+
         humanoid:MoveTo(hrp.Position)
         task.wait(0.8)
         return
     end
 
+    -- Pathfinding giữ nguyên
     local path = PathfindingService:CreatePath({
-        AgentRadius = 3, AgentHeight = 6, AgentCanJump = true,
-        WaypointSpacing = 3, Costs = {Water = math.huge}
+        AgentRadius = 3,
+        AgentHeight = 6,
+        AgentCanJump = true,
+        WaypointSpacing = 3,
+
+        Costs = {
+            Water = math.huge,
+            Tree = math.huge,
+            bossPortal = 9999999999,
+            House = 999999999
+        }
     })
 
     local success = pcall(function()
@@ -239,4 +365,18 @@ UserInputService.InputBegan:Connect(function(input, gp)
     end
 end)
 
-print("Script Egg Hunter (Chỉ nhảy khi CanCollide = true) đã load! Nhấn N để bật")
+-- ==================== AUTO CLICK MỖI 5 PHÚT ====================
+local VirtualUser = game:GetService("VirtualUser")
+
+task.spawn(function()
+    while true do
+        task.wait(300) -- 300 giây = 5 phút
+        
+        -- Giả lập click chuột (tránh AFK / tự nhấn màn hình)
+        VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        task.wait(0.1)
+        VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+
+        print("🖱️ Đã tự động click sau 5 phút")
+    end
+end)
