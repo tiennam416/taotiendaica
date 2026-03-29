@@ -154,11 +154,29 @@ local function startObstacleJump()
     obstacleConnection = RunService.Heartbeat:Connect(function()
         if not enabled or not hrp or not humanoid then return end
 
-        local origin = hrp.Position + Vector3.new(0, -1.6, 0)   -- Từ bụng
+        local origin = hrp.Position + Vector3.new(0, -1.6, 0)
         local forward = hrp.CFrame.LookVector
+
+        -- ================== 🔻 CHECK HỐ 🔻 ==================
+        local checkPos = hrp.Position + forward * 4 -- phía trước
+        local downResult = workspace:Raycast(checkPos, Vector3.new(0, -12, 0), raycastParams)
+
+        if not downResult then
+            print("🕳️ PHÁT HIỆN HỐ → NHẢY TRÁNH")
+
+            humanoid.JumpPower = 60
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+
+            -- lùi nhẹ lại tránh rơi
+            humanoid:MoveTo(hrp.Position - forward * 5)
+
+            task.wait(0.2)
+            return
+        end
+        -- ===================================================
+
         local hitDetected = false
 
-        -- 3 tia raycast
         local directions = {
             forward * 5.2,
             (forward + Vector3.new(0.45, 0, 0)).Unit * 5.2,
@@ -170,28 +188,17 @@ local function startObstacleJump()
 
             if result and result.Instance then
                 local part = result.Instance
-                
-                -- KIỂM TRA CANCOLLIDE
+
                 if part.CanCollide == true then
                     hitDetected = true
-                    print(string.format("🔴 TIA %d PHÁT HIỆN VẬT CẢN CÓ CanCollide = true → Part: %s | Material: %s", 
-                        i, part.Name, tostring(part.Material)))
-                    
+
                     humanoid.JumpPower = 58
                     humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+
                     task.wait(0.18)
                     break
-                else
-                    -- Debug: Phát hiện vật cản nhưng CanCollide = false
-                    if math.random(1, 15) == 1 then
-                        print("⚪ Phát hiện part nhưng CanCollide = false → Không nhảy: " .. part.Name)
-                    end
                 end
             end
-        end
-
-        if not hitDetected and math.random(1, 30) == 1 then
-            print("🟢 Không có vật cản nào có CanCollide = true")
         end
     end)
 end
