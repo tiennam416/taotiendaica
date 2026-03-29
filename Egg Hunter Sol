@@ -10,50 +10,41 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local enabled = false
-local jumpConnection = nil
+local obstacleConnection = nil
 
--- ==================== TẠO UI ====================
+-- ==================== UI ====================
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "EggHunterUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- Frame chính (draggable)
 local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 280, 0, 180)      -- kích thước gốc
-mainFrame.Position = UDim2.new(0.5, -140, 0.3, 0)
+mainFrame.Size = UDim2.new(0, 320, 0, 210)
+mainFrame.Position = UDim2.new(0.5, -160, 0.2, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
-mainFrame.Draggable = true                     -- cách đơn giản nhất để kéo
+mainFrame.Draggable = true
 mainFrame.Parent = screenGui
 
--- Bo góc + viền đẹp
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 12)
 corner.Parent = mainFrame
 
 local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(0, 170, 255)
+stroke.Color = Color3.fromRGB(0, 200, 255)
 stroke.Thickness = 2
 stroke.Parent = mainFrame
 
--- Title
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 40)
 title.BackgroundTransparency = 1
-title.Text = "🍳 Egg Hunter Auto"
+title.Text = "🍳 Egg Hunter - Nhảy Vật Cản (Chỉ CanCollide = true)"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextScaled = true
 title.Font = Enum.Font.GothamBold
 title.Parent = mainFrame
 
-local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 12)
-titleCorner.Parent = title
-
--- Status Label
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(1, -20, 0, 30)
 statusLabel.Position = UDim2.new(0, 10, 0, 50)
@@ -64,10 +55,9 @@ statusLabel.TextScaled = true
 statusLabel.Font = Enum.Font.Gotham
 statusLabel.Parent = mainFrame
 
--- Toggle Button
 local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(0.9, 0, 0, 50)
-toggleButton.Position = UDim2.new(0.05, 0, 0, 100)
+toggleButton.Size = UDim2.new(0.9, 0, 0, 55)
+toggleButton.Position = UDim2.new(0.05, 0, 0, 95)
 toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 toggleButton.Text = "BẤM ĐỂ BẬT (N)"
 toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -79,72 +69,98 @@ local btnCorner = Instance.new("UICorner")
 btnCorner.CornerRadius = UDim.new(0, 10)
 btnCorner.Parent = toggleButton
 
--- Tự động scale UI trên mọi thiết bị
 local uiScale = Instance.new("UIScale")
-uiScale.Scale = 1
 uiScale.Parent = mainFrame
 
--- Điều chỉnh scale theo kích thước màn hình (tốt cho mobile)
 local function updateScale()
-    local viewportSize = workspace.CurrentCamera.ViewportSize
-    local scaleFactor = math.clamp(viewportSize.Y / 1080, 0.7, 1.3)  -- giới hạn scale
-    uiScale.Scale = scaleFactor
+    local viewportY = workspace.CurrentCamera.ViewportSize.Y
+    uiScale.Scale = math.clamp(viewportY / 1080, 0.75, 1.35)
 end
-
 updateScale()
 workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
 
--- ==================== AUTO JUMP ====================
-local function startAutoJump()
-    if jumpConnection then return end
-    jumpConnection = RunService.Heartbeat:Connect(function()
-        if not enabled or not humanoid then return end
-        local state = humanoid:GetState()
-        if state == Enum.HumanoidStateType.Running or 
-           state == Enum.HumanoidStateType.RunningNoPhysics or 
-           state == Enum.HumanoidStateType.Landed then
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+-- ==================== RAYCAST CHỈ NHẢY KHI CANCOLLIDE = TRUE ====================
+local function startObstacleJump()
+    if obstacleConnection then return end
+
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {character}
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.IgnoreWater = true
+
+    obstacleConnection = RunService.Heartbeat:Connect(function()
+        if not enabled or not hrp or not humanoid then return end
+
+        local origin = hrp.Position + Vector3.new(0, 1.6, 0)   -- Từ bụng
+        local forward = hrp.CFrame.LookVector
+        local hitDetected = false
+
+        -- 3 tia raycast
+        local directions = {
+            forward * 5.2,
+            (forward + Vector3.new(0.45, 0, 0)).Unit * 5.2,
+            (forward - Vector3.new(0.45, 0, 0)).Unit * 5.2,
+        }
+
+        for i, dir in ipairs(directions) do
+            local result = workspace:Raycast(origin, dir, raycastParams)
+
+            if result and result.Instance then
+                local part = result.Instance
+                
+                -- KIỂM TRA CANCOLLIDE
+                if part.CanCollide == true then
+                    hitDetected = true
+                    print(string.format("🔴 TIA %d PHÁT HIỆN VẬT CẢN CÓ CanCollide = true → Part: %s | Material: %s", 
+                        i, part.Name, tostring(part.Material)))
+                    
+                    humanoid.JumpPower = 58
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    task.wait(0.18)
+                    break
+                else
+                    -- Debug: Phát hiện vật cản nhưng CanCollide = false
+                    if math.random(1, 15) == 1 then
+                        print("⚪ Phát hiện part nhưng CanCollide = false → Không nhảy: " .. part.Name)
+                    end
+                end
+            end
+        end
+
+        if not hitDetected and math.random(1, 30) == 1 then
+            print("🟢 Không có vật cản nào có CanCollide = true")
         end
     end)
 end
 
-local function stopAutoJump()
-    if jumpConnection then
-        jumpConnection:Disconnect()
-        jumpConnection = nil
+local function stopObstacleJump()
+    if obstacleConnection then
+        obstacleConnection:Disconnect()
+        obstacleConnection = nil
     end
 end
 
--- ==================== TÌM TRỨNG GẦN NHẤT ====================
-local function findNearestEgg()
-    local minDistance = math.huge
-    local nearestEgg = nil
+-- ==================== TÌM TRỨNG & PROMPT ====================
+local function findBestEgg()
+    local bestEgg = nil
+    local bestNumber = -1
 
     for _, v in pairs(workspace:GetDescendants()) do
         if v:IsA("MeshPart") and string.find(v.Name, "point_egg_") then
-            local dist = (hrp.Position - v.Position).Magnitude
-            if dist < minDistance then
-                minDistance = dist
-                nearestEgg = v
+            local numStr = string.match(v.Name, "point_egg_(%d+)")
+            local num = numStr and tonumber(numStr) or 0
+            if num > bestNumber then
+                bestNumber = num
+                bestEgg = v
             end
         end
     end
-    return nearestEgg, minDistance
+    return bestEgg
 end
 
--- ==================== KÍCH HOẠT PROXIMITY PROMPT ====================
 local function triggerProximityPrompt(egg)
     if not egg then return end
-    local prompt = egg:FindFirstChildOfClass("ProximityPrompt")
-    if not prompt then
-        for _, obj in pairs(egg:GetDescendants()) do
-            if obj:IsA("ProximityPrompt") then
-                prompt = obj
-                break
-            end
-        end
-    end
-
+    local prompt = egg:FindFirstChildOfClass("ProximityPrompt") or egg:FindFirstChild("ProximityPrompt", true)
     if prompt then
         prompt:InputHoldBegin()
         task.wait(0.15)
@@ -152,86 +168,70 @@ local function triggerProximityPrompt(egg)
     end
 end
 
--- ==================== ĐI ĐẾN TRỨNG ====================
-local function goToNearestEgg()
+local function goToBestEgg()
     if not enabled then return end
-    
-    local nearestEgg, distance = findNearestEgg()
-    if not nearestEgg then return end
+    local bestEgg = findBestEgg()
+    if not bestEgg then return end
 
-    if distance < 8 then
-        triggerProximityPrompt(nearestEgg)
+    local dist = (hrp.Position - bestEgg.Position).Magnitude
+    if dist < 8 then
+        triggerProximityPrompt(bestEgg)
         humanoid:MoveTo(hrp.Position)
         task.wait(0.8)
         return
     end
 
-    -- Pathfinding né hố
     local path = PathfindingService:CreatePath({
-        AgentRadius = 2.5,
-        AgentHeight = 6,
-        AgentCanJump = true,
-        WaypointSpacing = 4,
-        Costs = { Water = math.huge }
+        AgentRadius = 3, AgentHeight = 6, AgentCanJump = true,
+        WaypointSpacing = 3, Costs = {Water = math.huge}
     })
 
     local success = pcall(function()
-        path:ComputeAsync(hrp.Position, nearestEgg.Position + Vector3.new(0, 3, 0))
+        path:ComputeAsync(hrp.Position, bestEgg.Position + Vector3.new(0, 3, 0))
     end)
 
     if success and path.Status == Enum.PathStatus.Success then
-        for _, waypoint in ipairs(path:GetWaypoints()) do
+        for _, wp in ipairs(path:GetWaypoints()) do
             if not enabled then break end
-            humanoid:MoveTo(waypoint.Position)
-            if not humanoid.MoveToFinished:Wait(2) then break end
-            if waypoint.Action == Enum.PathWaypointAction.Jump then
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
+            humanoid:MoveTo(wp.Position)
+            if not humanoid.MoveToFinished:Wait(2.5) then break end
         end
     else
-        humanoid:MoveTo(nearestEgg.Position + Vector3.new(0, 4, 0))
+        humanoid:MoveTo(bestEgg.Position + Vector3.new(0, 4, 0))
     end
 end
 
--- ==================== MAIN LOOP ====================
 task.spawn(function()
     while true do
         if enabled and character and hrp and humanoid then
-            goToNearestEgg()
+            goToBestEgg()
         end
-        task.wait(0.6)
+        task.wait(0.7)
     end
 end)
 
--- ==================== XỬ LÝ TOGGLE ====================
+-- ==================== TOGGLE ====================
 local function toggleScript()
     enabled = not enabled
-    
     if enabled then
-        statusLabel.Text = "Trạng thái: ĐANG BẬT"
+        statusLabel.Text = "Trạng thái: ĐANG BẬT (Chỉ nhảy CanCollide=true)"
         statusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
         toggleButton.Text = "BẤM ĐỂ TẮT"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-        startAutoJump()
-        humanoid.JumpPower = 48
-        print("✅ AUTO EGG + JUMP + NÉ HỐ ĐÃ BẬT")
+        toggleButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+        startObstacleJump()
+        print("✅ AUTO EGG + NHẢY CHỈ VẬT CẢN CÓ CANCOLLIDE = TRUE")
     else
         statusLabel.Text = "Trạng thái: TẮT"
         statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
         toggleButton.Text = "BẤM ĐỂ BẬT (N)"
         toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-        stopAutoJump()
-        if humanoid then
-            humanoid:MoveTo(hrp.Position)
-        end
-        print("❌ AUTO EGG + JUMP + NÉ HỐ ĐÃ TẮT")
+        stopObstacleJump()
+        print("❌ AUTO EGG ĐÃ TẮT")
     end
 end
 
--- Click nút
 toggleButton.MouseButton1Click:Connect(toggleScript)
 
--- Phím N (vẫn giữ)
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     if input.KeyCode == Enum.KeyCode.N then
@@ -239,4 +239,4 @@ UserInputService.InputBegan:Connect(function(input, gp)
     end
 end)
 
-print("Egg Hunter UI đã load! Nhấn N hoặc click nút để bật/tắt")
+print("Script Egg Hunter (Chỉ nhảy khi CanCollide = true) đã load! Nhấn N để bật")
