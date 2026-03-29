@@ -213,7 +213,7 @@ local function findBestEgg()
             
             -- ❌ BỎ QUA TRỨNG Ở VÙNG KHÔNG MONG MUỐN
             local pos = v.Position
-            if pos.X < 22 and pos.Z < -136 then
+            if pos.X < 77 and pos.Z < -136 then
                 continue
             end
 
