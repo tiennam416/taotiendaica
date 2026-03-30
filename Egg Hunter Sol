@@ -238,6 +238,23 @@ local function isInForbiddenZone(pos)
     end
     return false
 end
+local waterFolder = workspace.Map.Miscs.WaterBlocks
+
+local function isUnderWater(pos)
+    for _, part in pairs(waterFolder:GetDescendants()) do
+        if part:IsA("BasePart") then
+            local size = part.Size
+            local p = part.Position
+
+            if pos.X >= p.X - size.X/2 and pos.X <= p.X + size.X/2
+            and pos.Z >= p.Z - size.Z/2 and pos.Z <= p.Z + size.Z/2
+            and pos.Y <= p.Y + size.Y/2 then
+                return true
+            end
+        end
+    end
+    return false
+end
 
 local function findBestEgg()
     local closestEgg = nil
@@ -249,9 +266,9 @@ local function findBestEgg()
             local pos = v.Position
 
             -- ❌ bỏ qua vùng cấm
-            if isInForbiddenZone(pos) then
-                continue
-            end
+            if isInForbiddenZone(pos) or isUnderWater(pos) then
+    			continue
+			end
 
             -- 📏 tính khoảng cách
             local dist = (hrp.Position - pos).Magnitude
@@ -266,6 +283,8 @@ local function findBestEgg()
     return closestEgg
 end
 
+
+
 local function triggerProximityPrompt(egg)
     if not egg then return end
     local prompt = egg:FindFirstChildOfClass("ProximityPrompt") or egg:FindFirstChild("ProximityPrompt", true)
@@ -278,7 +297,7 @@ end
 
 ---=============Né Nước,Cây===================================
 local map = workspace:WaitForChild("Map")
-local waterFolder = map:WaitForChild("Miscs"):WaitForChild("WaterBlocks")
+
 local treeFolder = map:WaitForChild("trees")
 local bossPortal = workspace["Boss Portal"]
 local house = workspace.Map.house
@@ -350,10 +369,17 @@ local function goToBestEgg()
 
     if success and path.Status == Enum.PathStatus.Success then
         for _, wp in ipairs(path:GetWaypoints()) do
-            if not enabled then break end
-            humanoid:MoveTo(wp.Position)
-            if not humanoid.MoveToFinished:Wait(2.5) then break end
-        end
+    		if not enabled then break end
+
+    		-- ❌ nếu waypoint nằm trong nước → bỏ path
+    		if isUnderWater(wp.Position) then
+       		print("🌊 Path bị nước chặn → bỏ")
+        	return
+    	end
+
+    	humanoid:MoveTo(wp.Position)
+    	if not humanoid.MoveToFinished:Wait(2.5) then break end
+	end
     else
         humanoid:MoveTo(bestEgg.Position + Vector3.new(0, 4, 0))
     end
