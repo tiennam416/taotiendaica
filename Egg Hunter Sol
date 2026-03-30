@@ -154,29 +154,11 @@ local function startObstacleJump()
     obstacleConnection = RunService.Heartbeat:Connect(function()
         if not enabled or not hrp or not humanoid then return end
 
-        local origin = hrp.Position + Vector3.new(0, -1.6, 0)
+        local origin = hrp.Position + Vector3.new(0, -1.6, 0)   -- Từ bụng
         local forward = hrp.CFrame.LookVector
-
-        -- ================== 🔻 CHECK HỐ 🔻 ==================
-        local checkPos = hrp.Position + forward * 4 -- phía trước
-        local downResult = workspace:Raycast(checkPos, Vector3.new(0, -12, 0), raycastParams)
-
-        if not downResult then
-            print("🕳️ PHÁT HIỆN HỐ → NHẢY TRÁNH")
-
-            humanoid.JumpPower = 60
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-
-            -- lùi nhẹ lại tránh rơi
-            humanoid:MoveTo(hrp.Position - forward * 5)
-
-            task.wait(0.2)
-            return
-        end
-        -- ===================================================
-
         local hitDetected = false
 
+        -- 3 tia raycast
         local directions = {
             forward * 5.2,
             (forward + Vector3.new(0.45, 0, 0)).Unit * 5.2,
@@ -184,21 +166,39 @@ local function startObstacleJump()
         }
 
         for i, dir in ipairs(directions) do
-            local result = workspace:Raycast(origin, dir, raycastParams)
+    local result = workspace:Raycast(origin, dir, raycastParams)
 
-            if result and result.Instance then
-                local part = result.Instance
+    if result and result.Instance then
+        local part = result.Instance
+        
+        if part.CanCollide == true then
+            
+            -- 🔍 CHECK TƯỜNG CAO
+            local highOrigin = origin + Vector3.new(0, 3.5, 0) -- cao hơn đầu
+            local highCheck = workspace:Raycast(highOrigin, dir, raycastParams)
 
-                if part.CanCollide == true then
-                    hitDetected = true
+            if highCheck and highCheck.Instance and highCheck.Instance == part then
+                -- ❌ Đây là tường cao → KHÔNG NHẢY
+                print("🧱 Tường cao detected → bỏ qua: " .. part.Name)
 
-                    humanoid.JumpPower = 58
-                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-
-                    task.wait(0.18)
-                    break
-                end
+                -- 👉 Option: xoay nhẹ để né
+                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(math.random(-40,40)), 0)
+                
+                return
             end
+
+            -- ✅ Vật thấp → NHẢY
+            print(string.format("🟡 Vật thấp → nhảy: %s", part.Name))
+            humanoid.JumpPower = 58
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            task.wait(0.18)
+            break
+        end
+    end
+end
+
+        if not hitDetected and math.random(1, 30) == 1 then
+            print("🟢 Không có vật cản nào có CanCollide = true")
         end
     end)
 end
@@ -211,33 +211,60 @@ local function stopObstacleJump()
 end
 
 -- ==================== TÌM TRỨNG & PROMPT ====================
+
+local forbiddenZones = {
+    {
+        minX = -100,
+        maxX = 20,
+        minZ = -145,
+        maxZ = -70
+    },
+
+    -- ✅ VÙNG MỚI BẠN YÊU CẦU
+    {
+        minX = 30,
+        maxX = 235,
+        minZ = -700,
+        maxZ = -580
+    }
+}
+
+local function isInForbiddenZone(pos)
+    for _, zone in pairs(forbiddenZones) do
+        if pos.X >= zone.minX and pos.X <= zone.maxX
+        and pos.Z >= zone.minZ and pos.Z <= zone.maxZ then
+            return true
+        end
+    end
+    return false
+end
+
 local function findBestEgg()
-    local bestEgg = nil
-    local bestNumber = -1
+    local closestEgg = nil
+    local closestDistance = math.huge
 
     for _, v in pairs(workspace:GetDescendants()) do
         if v:IsA("MeshPart") and string.find(v.Name, "point_egg_") then
             
-            -- ❌ BỎ QUA TRỨNG Ở VÙNG KHÔNG MONG MUỐN
             local pos = v.Position
-            if pos.X < 77 and pos.Z < -136 then
+
+            -- ❌ bỏ qua vùng cấm
+            if isInForbiddenZone(pos) then
                 continue
             end
 
-            local numStr = string.match(v.Name, "point_egg_(%d+)")
-            local num = numStr and tonumber(numStr) or 0
+            -- 📏 tính khoảng cách
+            local dist = (hrp.Position - pos).Magnitude
 
-            if num > bestNumber then
-                bestNumber = num
-                bestEgg = v
+            if dist < closestDistance then
+                closestDistance = dist
+                closestEgg = v
             end
         end
     end
 
-    return bestEgg
+    return closestEgg
 end
-
-
 
 local function triggerProximityPrompt(egg)
     if not egg then return end
@@ -282,10 +309,8 @@ local currentTargetEgg = nil
 local function goToBestEgg()
     if not enabled then return end
 
-    -- Nếu chưa có target thì mới chọn trứng tốt nhất
-    if not currentTargetEgg or not currentTargetEgg.Parent then
-        currentTargetEgg = findBestEgg()
-    end
+    
+    currentTargetEgg = findBestEgg()
 
     local bestEgg = currentTargetEgg
     if not bestEgg then return end
