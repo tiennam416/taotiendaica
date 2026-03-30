@@ -200,17 +200,24 @@ local function startObstacleJump()
                     local highCheck = workspace:Raycast(highOrigin, dir, raycastParams)
 
                     if highCheck and highCheck.Instance and highCheck.Instance == part then
-                        -- 🧱 TƯỜNG CAO → TẠO STEP + NHẢY
-                        print("🧱 Tường cao → tạo step: " .. part.Name)
+   					 -- 🧱 TƯỜNG CAO → GIỮ KHOẢNG CÁCH 5 STUD RỒI NHẢY
+    				print("🧱 Tường cao → giữ khoảng cách + nhảy: " .. part.Name)
 
-                        createStepUnderPlayer()
+    				local direction = (hrp.Position - part.Position).Unit
+   					 local targetPos = part.Position + direction * 5
 
-                        humanoid.JumpPower = 60
-                        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    				-- Di chuyển lùi lại 1 chút trước khi nhảy
+    				humanoid:MoveTo(targetPos)
+    				humanoid.MoveToFinished:Wait(0.25)
 
-                        task.wait(0.15)
-                        return
-                    end
+    				createStepUnderPlayer()
+
+    				humanoid.JumpPower = 60
+   					humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+
+    				task.wait(0.2)
+    				return
+				end
 
                     -- ✅ VẬT THẤP → NHẢY THƯỜNG
                     print("🟡 Vật thấp → nhảy: " .. part.Name)
