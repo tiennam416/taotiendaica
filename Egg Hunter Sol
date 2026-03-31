@@ -12,9 +12,7 @@ local RunService = game:GetService("RunService")
 local enabled = false
 local obstacleConnection = nil
 
---=====================ESP=====================
-
--- ==================== ESP TRỨNG ====================
+--===================== ESP EGG ====================
 local espEnabled = true
 local espFolder = Instance.new("Folder")
 espFolder.Name = "EggESP"
@@ -23,7 +21,6 @@ espFolder.Parent = workspace
 local function createESP(egg)
     if egg:FindFirstChild("EggHighlight") then return end
 
-    -- Highlight
     local highlight = Instance.new("Highlight")
     highlight.Name = "EggHighlight"
     highlight.FillColor = Color3.fromRGB(255, 255, 0)
@@ -33,45 +30,99 @@ local function createESP(egg)
     highlight.Adornee = egg
     highlight.Parent = egg
 
-    -- Billboard (text)
+    -- Billboard
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "EggESPBillboard"
-    billboard.Size = UDim2.new(0, 120, 0, 40)
+    billboard.Size = UDim2.new(0, 140, 0, 50)
     billboard.AlwaysOnTop = true
-    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
     billboard.Parent = egg
 
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, 0, 1, 0)
     label.BackgroundTransparency = 1
-    label.TextColor3 = Color3.fromRGB(255, 255, 0)
-    label.TextStrokeTransparency = 0
     label.TextScaled = true
     label.Font = Enum.Font.GothamBold
+    label.TextStrokeTransparency = 0
+    label.TextStrokeColor3 = Color3.new(0,0,0)
 
-    local num = string.match(egg.Name, "point_egg_(%d+)")
-    label.Text = "🥚 Egg " .. (num or "?")
+    local num = string.match(egg.Name, "point_egg_(%d+)") or "?"
+    label.Text = "🥚 Egg " .. num
 
     label.Parent = billboard
 end
 
-local function scanEggs()
-    if not espEnabled then return end
+local function createForbiddenESP(egg)
+    if egg:FindFirstChild("ForbiddenESP") then return end
 
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ForbiddenESP"
+    billboard.Size = UDim2.new(0, 100, 0, 60)
+    billboard.AlwaysOnTop = true
+    billboard.StudsOffset = Vector3.new(0, 3.5, 0)
+    billboard.Parent = egg
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = "❌ CẤM"
+    label.TextColor3 = Color3.fromRGB(255, 50, 50)
+    label.TextScaled = true
+    label.Font = Enum.Font.GothamBlack
+    label.TextStrokeTransparency = 0
+    label.TextStrokeColor3 = Color3.new(0,0,0)
+    label.Parent = billboard
+end
+
+local function scanEggs()
     for _, v in pairs(workspace:GetDescendants()) do
         if v:IsA("MeshPart") and string.find(v.Name, "point_egg_") then
-            createESP(v)
+            local pos = v.Position
+
+            if isInForbiddenZone(pos) then
+                createForbiddenESP(v)
+                -- Xóa highlight bình thường nếu có
+                if v:FindFirstChild("EggHighlight") then
+                    v.EggHighlight:Destroy()
+                end
+            else
+                if espEnabled then
+                    createESP(v)
+                else
+                    if v:FindFirstChild("EggHighlight") then
+                        v.EggHighlight:Destroy()
+                    end
+                    if v:FindFirstChild("EggESPBillboard") then
+                        v.EggESPBillboard:Destroy()
+                    end
+                end
+            end
         end
     end
+end
+
+-- ==================== FORBIDDEN ZONES ====================
+local forbiddenZones = {
+    {minX = -100, maxX = 20,   minZ = -145, maxZ = -70},
+    {minX = 30,   maxX = 239,  minZ = -700, maxZ = -580},
+    {minX = 15,   maxX = 65,   minZ = -459, maxZ = -409},
+}
+
+local function isInForbiddenZone(pos)
+    for _, zone in ipairs(forbiddenZones) do
+        if pos.X >= zone.minX and pos.X <= zone.maxX and
+           pos.Z >= zone.minZ and pos.Z <= zone.maxZ then
+            return true
+        end
+    end
+    return false
 end
 
 -- Auto update ESP
 task.spawn(function()
     while true do
-        if espEnabled then
-            scanEggs()
-        end
-        task.wait(2)
+        scanEggs()
+        task.wait(1.5)
     end
 end)
 
@@ -82,8 +133,8 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 320, 0, 210)
-mainFrame.Position = UDim2.new(0.5, -160, 0.2, 0)
+mainFrame.Size = UDim2.new(0, 340, 0, 260)
+mainFrame.Position = UDim2.new(0.5, -170, 0.15, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
@@ -100,9 +151,9 @@ stroke.Thickness = 2
 stroke.Parent = mainFrame
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 40)
+title.Size = UDim2.new(1, 0, 0, 45)
 title.BackgroundTransparency = 1
-title.Text = "🍳 Egg Hunter - Nhảy Vật Cản (Chỉ CanCollide = true)"
+title.Text = "🍳 Egg Hunter - Nhảy Vật Cản"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextScaled = true
 title.Font = Enum.Font.GothamBold
@@ -110,7 +161,7 @@ title.Parent = mainFrame
 
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(1, -20, 0, 30)
-statusLabel.Position = UDim2.new(0, 10, 0, 50)
+statusLabel.Position = UDim2.new(0, 10, 0, 55)
 statusLabel.BackgroundTransparency = 1
 statusLabel.Text = "Trạng thái: TẮT"
 statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
@@ -118,11 +169,12 @@ statusLabel.TextScaled = true
 statusLabel.Font = Enum.Font.Gotham
 statusLabel.Parent = mainFrame
 
+-- Toggle Auto
 local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(0.9, 0, 0, 55)
+toggleButton.Size = UDim2.new(0.9, 0, 0, 50)
 toggleButton.Position = UDim2.new(0.05, 0, 0, 95)
 toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-toggleButton.Text = "BẤM ĐỂ BẬT (N)"
+toggleButton.Text = "BẤM ĐỂ BẬT AUTO (N)"
 toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleButton.TextScaled = true
 toggleButton.Font = Enum.Font.GothamBold
@@ -131,6 +183,21 @@ toggleButton.Parent = mainFrame
 local btnCorner = Instance.new("UICorner")
 btnCorner.CornerRadius = UDim.new(0, 10)
 btnCorner.Parent = toggleButton
+
+-- Toggle ESP
+local espButton = Instance.new("TextButton")
+espButton.Size = UDim2.new(0.9, 0, 0, 45)
+espButton.Position = UDim2.new(0.05, 0, 0, 155)
+espButton.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
+espButton.Text = "ESP Egg: BẬT"
+espButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+espButton.TextScaled = true
+espButton.Font = Enum.Font.GothamBold
+espButton.Parent = mainFrame
+
+local espCorner = Instance.new("UICorner")
+espCorner.CornerRadius = UDim.new(0, 10)
+espCorner.Parent = espButton
 
 local uiScale = Instance.new("UIScale")
 uiScale.Parent = mainFrame
@@ -142,7 +209,7 @@ end
 updateScale()
 workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
 
--- ==================== RAYCAST CHỈ NHẢY KHI CANCOLLIDE = TRUE ====================
+-- ==================== RAYCAST NHẢY VẬT CẢN ====================
 local function startObstacleJump()
     if obstacleConnection then return end
 
@@ -154,51 +221,37 @@ local function startObstacleJump()
     obstacleConnection = RunService.Heartbeat:Connect(function()
         if not enabled or not hrp or not humanoid then return end
 
-        local origin = hrp.Position + Vector3.new(0, -1.6, 0)   -- Từ bụng
+        local origin = hrp.Position + Vector3.new(0, -1.6, 0)
         local forward = hrp.CFrame.LookVector
-        local hitDetected = false
 
-        -- 3 tia raycast
         local directions = {
             forward * 5.2,
             (forward + Vector3.new(0.45, 0, 0)).Unit * 5.2,
             (forward - Vector3.new(0.45, 0, 0)).Unit * 5.2,
         }
 
-        for i, dir in ipairs(directions) do
-    local result = workspace:Raycast(origin, dir, raycastParams)
+        for _, dir in ipairs(directions) do
+            local result = workspace:Raycast(origin, dir, raycastParams)
+            if result and result.Instance and result.Instance.CanCollide then
+                local part = result.Instance
 
-    if result and result.Instance then
-        local part = result.Instance
-        
-        if part.CanCollide == true then
-            
-            -- 🔍 CHECK TƯỜNG CAO
-            local highOrigin = origin + Vector3.new(0, 3.5, 0) -- cao hơn đầu
-            local highCheck = workspace:Raycast(highOrigin, dir, raycastParams)
+                -- Kiểm tra tường cao
+                local highOrigin = origin + Vector3.new(0, 3.5, 0)
+                local highCheck = workspace:Raycast(highOrigin, dir, raycastParams)
 
-            if highCheck and highCheck.Instance and highCheck.Instance == part then
-                -- ❌ Đây là tường cao → KHÔNG NHẢY
-                print("🧱 Tường cao detected → bỏ qua: " .. part.Name)
+                if highCheck and highCheck.Instance == part then
+                    print("🧱 Tường cao → bỏ qua: " .. part.Name)
+                    hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(math.random(-35,35)), 0)
+                    return
+                end
 
-                -- 👉 Option: xoay nhẹ để né
-                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(math.random(-40,40)), 0)
-                
+                -- Nhảy vật thấp
+                print("🟡 Nhảy vật cản: " .. part.Name)
+                humanoid.JumpPower = 58
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                task.wait(0.18)
                 return
             end
-
-            -- ✅ Vật thấp → NHẢY
-            print(string.format("🟡 Vật thấp → nhảy: %s", part.Name))
-            humanoid.JumpPower = 58
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            task.wait(0.18)
-            break
-        end
-    end
-end
-
-        if not hitDetected and math.random(1, 30) == 1 then
-            print("🟢 Không có vật cản nào có CanCollide = true")
         end
     end)
 end
@@ -211,65 +264,22 @@ local function stopObstacleJump()
 end
 
 -- ==================== TÌM TRỨNG & PROMPT ====================
-
-local forbiddenZones = {
-    {
-        minX = -100,
-        maxX = 20,
-        minZ = -145,
-        maxZ = -70
-    },
-
-    -- ✅ VÙNG MỚI BẠN YÊU CẦU
-    {
-        minX = 30,
-        maxX = 239,
-        minZ = -700,
-        maxZ = -580
-    },
-
-	{
-		minX = 15,
-		maxX = 65,
-		minZ = -459,
-		maxZ = -409
-	}
-}
-
-local function isInForbiddenZone(pos)
-    for _, zone in pairs(forbiddenZones) do
-        if pos.X >= zone.minX and pos.X <= zone.maxX
-        and pos.Z >= zone.minZ and pos.Z <= zone.maxZ then
-            return true
-        end
-    end
-    return false
-end
-
 local function findBestEgg()
     local closestEgg = nil
     local closestDistance = math.huge
 
     for _, v in pairs(workspace:GetDescendants()) do
         if v:IsA("MeshPart") and string.find(v.Name, "point_egg_") then
-            
             local pos = v.Position
+            if isInForbiddenZone(pos) then continue end
 
-            -- ❌ bỏ qua vùng cấm
-            if isInForbiddenZone(pos) then
-                continue
-            end
-
-            -- 📏 tính khoảng cách
             local dist = (hrp.Position - pos).Magnitude
-
             if dist < closestDistance then
                 closestDistance = dist
                 closestEgg = v
             end
         end
     end
-
     return closestEgg
 end
 
@@ -283,7 +293,7 @@ local function triggerProximityPrompt(egg)
     end
 end
 
----=============Né Nước,Cây===================================
+-- ==================== PATHFINDING & TRÁNH VẬT CẢN ====================
 local map = workspace:WaitForChild("Map")
 local waterFolder = map:WaitForChild("Miscs"):WaitForChild("WaterBlocks")
 local treeFolder = map:WaitForChild("trees")
@@ -292,15 +302,12 @@ local house = workspace.Map.house
 
 local function applyNoPath(folder, labelName)
     for _, part in pairs(folder:GetDescendants()) do
-        if part:IsA("BasePart") then
-            if not part:FindFirstChild("NoPath") then
-                local modifier = Instance.new("PathfindingModifier")
-                modifier.Name = "NoPath"
-                modifier.Parent = part
-
-                modifier.PassThrough = false
-                modifier.Label = labelName
-            end
+        if part:IsA("BasePart") and not part:FindFirstChild("NoPath") then
+            local modifier = Instance.new("PathfindingModifier")
+            modifier.Name = "NoPath"
+            modifier.Label = labelName
+            modifier.PassThrough = false
+            modifier.Parent = part
         end
     end
 end
@@ -310,39 +317,25 @@ applyNoPath(treeFolder, "Tree")
 applyNoPath(bossPortal, "bossPortal")
 applyNoPath(house, "House")
 
-local currentTargetEgg = nil
-
-
 local function goToBestEgg()
     if not enabled then return end
 
-    
-    currentTargetEgg = findBestEgg()
-
-    local bestEgg = currentTargetEgg
+    local bestEgg = findBestEgg()
     if not bestEgg then return end
 
     local dist = (hrp.Position - bestEgg.Position).Magnitude
 
-    -- Nếu gần thì nhặt
     if dist <= 10 then
         triggerProximityPrompt(bestEgg)
-
-        -- ✅ Sau khi nhặt xong → reset target để chọn trứng mới (lúc này mới ưu tiên trứng lớn hơn)
-        currentTargetEgg = nil
-
-        humanoid:MoveTo(hrp.Position)
         task.wait(0.8)
         return
     end
 
-    -- Pathfinding giữ nguyên
     local path = PathfindingService:CreatePath({
         AgentRadius = 3,
         AgentHeight = 6,
         AgentCanJump = true,
         WaypointSpacing = 3,
-
         Costs = {
             Water = math.huge,
             Tree = math.huge,
@@ -351,7 +344,7 @@ local function goToBestEgg()
         }
     })
 
-    local success = pcall(function()
+    local success, err = pcall(function()
         path:ComputeAsync(hrp.Position, bestEgg.Position + Vector3.new(0, 3, 0))
     end)
 
@@ -375,47 +368,58 @@ task.spawn(function()
     end
 end)
 
--- ==================== TOGGLE ====================
-local function toggleScript()
+-- ==================== TOGGLE FUNCTIONS ====================
+local function toggleAuto()
     enabled = not enabled
     if enabled then
-        statusLabel.Text = "Trạng thái: ĐANG BẬT (Chỉ nhảy CanCollide=true)"
+        statusLabel.Text = "Trạng thái: ĐANG BẬT"
         statusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
-        toggleButton.Text = "BẤM ĐỂ TẮT"
+        toggleButton.Text = "BẤM ĐỂ TẮT AUTO"
         toggleButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
         startObstacleJump()
-        print("✅ AUTO EGG + NHẢY CHỈ VẬT CẢN CÓ CANCOLLIDE = TRUE")
+        print("✅ AUTO EGG + NHẢY VẬT CẢN ĐÃ BẬT")
     else
         statusLabel.Text = "Trạng thái: TẮT"
         statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-        toggleButton.Text = "BẤM ĐỂ BẬT (N)"
+        toggleButton.Text = "BẤM ĐỂ BẬT AUTO (N)"
         toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
         stopObstacleJump()
         print("❌ AUTO EGG ĐÃ TẮT")
     end
 end
 
-toggleButton.MouseButton1Click:Connect(toggleScript)
+local function toggleESP()
+    espEnabled = not espEnabled
+    if espEnabled then
+        espButton.Text = "ESP Egg: BẬT"
+        espButton.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+    else
+        espButton.Text = "ESP Egg: TẮT"
+        espButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+    end
+    scanEggs() -- cập nhật ngay lập tức
+end
+
+-- ==================== CONNECTIONS ====================
+toggleButton.MouseButton1Click:Connect(toggleAuto)
+espButton.MouseButton1Click:Connect(toggleESP)
 
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     if input.KeyCode == Enum.KeyCode.N then
-        toggleScript()
+        toggleAuto()
     end
 end)
 
--- ==================== AUTO CLICK MỖI 5 PHÚT ====================
+-- ==================== ANTI-AFK ====================
 local VirtualUser = game:GetService("VirtualUser")
-
 task.spawn(function()
     while true do
-        task.wait(300) -- 300 giây = 5 phút
-        
-        -- Giả lập click chuột (tránh AFK / tự nhấn màn hình)
+        task.wait(300)
         VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
         task.wait(0.1)
         VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-
-        print("🖱️ Đã tự động click sau 5 phút")
     end
 end)
+
+print("🍳 Egg Hunter Script đã load thành công! Nhấn N hoặc bấm nút để bật.")
