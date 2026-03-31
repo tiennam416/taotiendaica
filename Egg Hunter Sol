@@ -59,11 +59,9 @@ local function scanEggs()
     if not espEnabled then return end
 
     for _, v in pairs(workspace:GetDescendants()) do
-        if (v:IsA("MeshPart") and string.find(v.Name, "point_egg_"))
-		or v.Name == "random_potion_egg_1"
-		or v.Name == "random_potion_egg_2" then
-    		createESP(v)
-end
+        if v:IsA("MeshPart") and string.find(v.Name, "point_egg_") then
+            createESP(v)
+        end
     end
 end
 
@@ -145,26 +143,6 @@ updateScale()
 workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
 
 -- ==================== RAYCAST CHỈ NHẢY KHI CANCOLLIDE = TRUE ====================
-local function createStepUnderPlayer()
-    if not hrp then return end
-
-    local step = Instance.new("Part")
-    step.Size = Vector3.new(5, 1.5, 5)
-    step.Anchored = true
-    step.CanCollide = true
-    step.Material = Enum.Material.Neon
-    step.Color = Color3.fromRGB(0, 255, 100)
-    step.Transparency = 0.2
-
-    step.Position = hrp.Position - Vector3.new(0, 3, 0)
-    step.Parent = workspace
-
-    task.delay(0.35, function()
-        if step then step:Destroy() end
-    end)
-end
-
-
 local function startObstacleJump()
     if obstacleConnection then return end
 
@@ -176,62 +154,51 @@ local function startObstacleJump()
     obstacleConnection = RunService.Heartbeat:Connect(function()
         if not enabled or not hrp or not humanoid then return end
 
-        local origin = hrp.Position + Vector3.new(0, -1.6, 0)
+        local origin = hrp.Position + Vector3.new(0, -1.6, 0)   -- Từ bụng
         local forward = hrp.CFrame.LookVector
         local hitDetected = false
 
+        -- 3 tia raycast
         local directions = {
             forward * 5.2,
             (forward + Vector3.new(0.45, 0, 0)).Unit * 5.2,
             (forward - Vector3.new(0.45, 0, 0)).Unit * 5.2,
         }
 
-        for _, dir in ipairs(directions) do
-            local result = workspace:Raycast(origin, dir, raycastParams)
+        for i, dir in ipairs(directions) do
+    local result = workspace:Raycast(origin, dir, raycastParams)
 
-            if result and result.Instance then
-                local part = result.Instance
+    if result and result.Instance then
+        local part = result.Instance
+        
+        if part.CanCollide == true then
+            
+            -- 🔍 CHECK TƯỜNG CAO
+            local highOrigin = origin + Vector3.new(0, 3.5, 0) -- cao hơn đầu
+            local highCheck = workspace:Raycast(highOrigin, dir, raycastParams)
 
-                if part.CanCollide == true then
-                    hitDetected = true
+            if highCheck and highCheck.Instance and highCheck.Instance == part then
+                -- ❌ Đây là tường cao → KHÔNG NHẢY
+                print("🧱 Tường cao detected → bỏ qua: " .. part.Name)
 
-                    -- 🔍 CHECK TƯỜNG CAO
-                    local highOrigin = origin + Vector3.new(0, 3.5, 0)
-                    local highCheck = workspace:Raycast(highOrigin, dir, raycastParams)
-
-                    if highCheck and highCheck.Instance and highCheck.Instance == part then
-   					 -- 🧱 TƯỜNG CAO → GIỮ KHOẢNG CÁCH 5 STUD RỒI NHẢY
-    				print("🧱 Tường cao → giữ khoảng cách + nhảy: " .. part.Name)
-
-    				local direction = (hrp.Position - part.Position).Unit
-   					 local targetPos = part.Position + direction * 5
-
-    				-- Di chuyển lùi lại 1 chút trước khi nhảy
-    				humanoid:MoveTo(targetPos)
-    				humanoid.MoveToFinished:Wait(0.25)
-
-    				createStepUnderPlayer()
-
-    				humanoid.JumpPower = 60
-   					humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-
-    				task.wait(0.2)
-    				return
-				end
-
-                    -- ✅ VẬT THẤP → NHẢY THƯỜNG
-                    print("🟡 Vật thấp → nhảy: " .. part.Name)
-                    humanoid.JumpPower = 58
-                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-
-                    task.wait(0.18)
-                    break
-                end
+                -- 👉 Option: xoay nhẹ để né
+                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(math.random(-40,40)), 0)
+                
+                return
             end
+
+            -- ✅ Vật thấp → NHẢY
+            print(string.format("🟡 Vật thấp → nhảy: %s", part.Name))
+            humanoid.JumpPower = 58
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            task.wait(0.18)
+            break
         end
+    end
+end
 
         if not hitDetected and math.random(1, 30) == 1 then
-            print("🟢 Không có vật cản")
+            print("🟢 Không có vật cản nào có CanCollide = true")
         end
     end)
 end
@@ -256,7 +223,7 @@ local forbiddenZones = {
     -- ✅ VÙNG MỚI BẠN YÊU CẦU
     {
         minX = 30,
-        maxX = 235,
+        maxX = 239,
         minZ = -700,
         maxZ = -580
     },
@@ -279,42 +246,21 @@ local function isInForbiddenZone(pos)
     return false
 end
 
-local function getEggPosition(obj)
-    if obj:IsA("Model") then
-        if obj.PrimaryPart then
-            return obj.PrimaryPart.Position
-        elseif obj:FindFirstChildWhichIsA("BasePart") then
-            return obj:FindFirstChildWhichIsA("BasePart").Position
-        end
-    elseif obj:IsA("BasePart") then
-        return obj.Position
-    end
-    return nil
-end
-
-local function isEgg(obj)
-    return (
-        (obj:IsA("MeshPart") and string.find(obj.Name, "point_egg_"))
-        or obj.Name == "random_potion_egg_1"
-        or obj.Name == "random_potion_egg_2"
-    )
-end
-
 local function findBestEgg()
     local closestEgg = nil
     local closestDistance = math.huge
 
     for _, v in pairs(workspace:GetDescendants()) do
-        if isEgg(v) then
+        if v:IsA("MeshPart") and string.find(v.Name, "point_egg_") then
             
-            local pos = getEggPosition(v)
-            if not pos then continue end
+            local pos = v.Position
 
-            -- ❌ bỏ vùng cấm
+            -- ❌ bỏ qua vùng cấm
             if isInForbiddenZone(pos) then
                 continue
             end
 
+            -- 📏 tính khoảng cách
             local dist = (hrp.Position - pos).Magnitude
 
             if dist < closestDistance then
@@ -329,10 +275,7 @@ end
 
 local function triggerProximityPrompt(egg)
     if not egg then return end
-
-    local prompt = egg:FindFirstChildOfClass("ProximityPrompt")
-        or egg:FindFirstChild("ProximityPrompt", true)
-
+    local prompt = egg:FindFirstChildOfClass("ProximityPrompt") or egg:FindFirstChild("ProximityPrompt", true)
     if prompt then
         prompt:InputHoldBegin()
         task.wait(0.15)
@@ -373,27 +316,27 @@ local currentTargetEgg = nil
 local function goToBestEgg()
     if not enabled then return end
 
+    
     currentTargetEgg = findBestEgg()
+
     local bestEgg = currentTargetEgg
     if not bestEgg then return end
 
-    -- 🔥 LẤY POSITION CHUẨN (fix Model)
-    local pos = getEggPosition(bestEgg)
-    if not pos then return end
-
-    local dist = (hrp.Position - pos).Magnitude
+    local dist = (hrp.Position - bestEgg.Position).Magnitude
 
     -- Nếu gần thì nhặt
     if dist <= 10 then
         triggerProximityPrompt(bestEgg)
 
+        -- ✅ Sau khi nhặt xong → reset target để chọn trứng mới (lúc này mới ưu tiên trứng lớn hơn)
         currentTargetEgg = nil
+
         humanoid:MoveTo(hrp.Position)
         task.wait(0.8)
         return
     end
 
-    -- Pathfinding
+    -- Pathfinding giữ nguyên
     local path = PathfindingService:CreatePath({
         AgentRadius = 3,
         AgentHeight = 6,
@@ -409,7 +352,7 @@ local function goToBestEgg()
     })
 
     local success = pcall(function()
-        path:ComputeAsync(hrp.Position, pos + Vector3.new(0, 3, 0))
+        path:ComputeAsync(hrp.Position, bestEgg.Position + Vector3.new(0, 3, 0))
     end)
 
     if success and path.Status == Enum.PathStatus.Success then
@@ -419,7 +362,7 @@ local function goToBestEgg()
             if not humanoid.MoveToFinished:Wait(2.5) then break end
         end
     else
-        humanoid:MoveTo(pos + Vector3.new(0, 4, 0))
+        humanoid:MoveTo(bestEgg.Position + Vector3.new(0, 4, 0))
     end
 end
 
@@ -466,7 +409,7 @@ local VirtualUser = game:GetService("VirtualUser")
 
 task.spawn(function()
     while true do
-        task.wait(240) -- 300 giây = 5 phút
+        task.wait(300) -- 300 giây = 5 phút
         
         -- Giả lập click chuột (tránh AFK / tự nhấn màn hình)
         VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
@@ -476,4 +419,3 @@ task.spawn(function()
         print("🖱️ Đã tự động click sau 5 phút")
     end
 end)
-
