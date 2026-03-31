@@ -20,20 +20,65 @@ local espFolder = Instance.new("Folder")
 espFolder.Name = "EggESP"
 espFolder.Parent = workspace
 
+
+local forbiddenZones = {
+    {
+        minX = -100,
+        maxX = 20,
+        minZ = -145,
+        maxZ = -70
+    },
+
+    -- ✅ VÙNG MỚI BẠN YÊU CẦU
+    {
+        minX = 30,
+        maxX = 239,
+        minZ = -700,
+        maxZ = -580
+    },
+
+	{
+		minX = 15,
+		maxX = 65,
+		minZ = -459,
+		maxZ = -409
+	}
+}
+
+local function isInForbiddenZone(pos)
+    for _, zone in pairs(forbiddenZones) do
+        if pos.X >= zone.minX and pos.X <= zone.maxX
+        and pos.Z >= zone.minZ and pos.Z <= zone.maxZ then
+            return true
+        end
+    end
+    return false
+end
+
 local function createESP(egg)
     if egg:FindFirstChild("EggHighlight") then return end
+
+    local pos = egg.Position
+    local inForbidden = isInForbiddenZone(pos)
 
     -- Highlight
     local highlight = Instance.new("Highlight")
     highlight.Name = "EggHighlight"
-    highlight.FillColor = Color3.fromRGB(255, 255, 0)
-    highlight.OutlineColor = Color3.fromRGB(255, 180, 0)
+
+    if inForbidden then
+        highlight.FillColor = Color3.fromRGB(255, 50, 50) -- đỏ
+        highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+    else
+        highlight.FillColor = Color3.fromRGB(255, 255, 0)
+        highlight.OutlineColor = Color3.fromRGB(255, 180, 0)
+    end
+
     highlight.FillTransparency = 0.35
     highlight.OutlineTransparency = 0
     highlight.Adornee = egg
     highlight.Parent = egg
 
-    -- Billboard (text)
+    -- Billboard
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "EggESPBillboard"
     billboard.Size = UDim2.new(0, 120, 0, 40)
@@ -44,15 +89,44 @@ local function createESP(egg)
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, 0, 1, 0)
     label.BackgroundTransparency = 1
-    label.TextColor3 = Color3.fromRGB(255, 255, 0)
     label.TextStrokeTransparency = 0
     label.TextScaled = true
     label.Font = Enum.Font.GothamBold
 
     local num = string.match(egg.Name, "point_egg_(%d+)")
-    label.Text = "🥚 Egg " .. (num or "?")
+
+    if inForbidden then
+        label.Text = "❌ Egg " .. (num or "?")
+        label.TextColor3 = Color3.fromRGB(255, 80, 80)
+    else
+        label.Text = "🥚 Egg " .. (num or "?")
+        label.TextColor3 = Color3.fromRGB(255, 255, 0)
+    end
 
     label.Parent = billboard
+end
+
+local function clearESP()
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("MeshPart") and string.find(v.Name, "point_egg_") then
+            local h = v:FindFirstChild("EggHighlight")
+            local b = v:FindFirstChild("EggESPBillboard")
+
+            if h then h:Destroy() end
+            if b then b:Destroy() end
+        end
+    end
+end
+
+local function toggleESP()
+    espEnabled = not espEnabled
+
+    if espEnabled then
+        print("🟡 ESP ON")
+    else
+        print("⚫ ESP OFF")
+        clearESP()
+    end
 end
 
 local function scanEggs()
@@ -102,7 +176,7 @@ stroke.Parent = mainFrame
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 40)
 title.BackgroundTransparency = 1
-title.Text = "🍳 Egg Hunter - Nhảy Vật Cản (Chỉ CanCollide = true)"
+title.Text = "🍳 Egg Hunter"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextScaled = true
 title.Font = Enum.Font.GothamBold
@@ -128,6 +202,32 @@ toggleButton.TextScaled = true
 toggleButton.Font = Enum.Font.GothamBold
 toggleButton.Parent = mainFrame
 
+local espButton = Instance.new("TextButton")
+espButton.Size = UDim2.new(0.9, 0, 0, 40)
+espButton.Position = UDim2.new(0.05, 0, 0, 160)
+espButton.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+espButton.Text = "ESP: BẬT"
+espButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+espButton.TextScaled = true
+espButton.Font = Enum.Font.GothamBold
+espButton.Parent = mainFrame
+
+local espCorner = Instance.new("UICorner")
+espCorner.CornerRadius = UDim.new(0, 8)
+espCorner.Parent = espButton
+
+espButton.MouseButton1Click:Connect(function()
+    toggleESP()
+
+    if espEnabled then
+        espButton.Text = "ESP: BẬT"
+        espButton.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+    else
+        espButton.Text = "ESP: TẮT"
+        espButton.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
+    end
+end)
+
 local btnCorner = Instance.new("UICorner")
 btnCorner.CornerRadius = UDim.new(0, 10)
 btnCorner.Parent = toggleButton
@@ -141,6 +241,8 @@ local function updateScale()
 end
 updateScale()
 workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
+
+
 
 -- ==================== RAYCAST CHỈ NHẢY KHI CANCOLLIDE = TRUE ====================
 local function startObstacleJump()
@@ -211,40 +313,6 @@ local function stopObstacleJump()
 end
 
 -- ==================== TÌM TRỨNG & PROMPT ====================
-
-local forbiddenZones = {
-    {
-        minX = -100,
-        maxX = 20,
-        minZ = -145,
-        maxZ = -70
-    },
-
-    -- ✅ VÙNG MỚI BẠN YÊU CẦU
-    {
-        minX = 30,
-        maxX = 239,
-        minZ = -700,
-        maxZ = -580
-    },
-
-	{
-		minX = 15,
-		maxX = 65,
-		minZ = -459,
-		maxZ = -409
-	}
-}
-
-local function isInForbiddenZone(pos)
-    for _, zone in pairs(forbiddenZones) do
-        if pos.X >= zone.minX and pos.X <= zone.maxX
-        and pos.Z >= zone.minZ and pos.Z <= zone.maxZ then
-            return true
-        end
-    end
-    return false
-end
 
 local function findBestEgg()
     local closestEgg = nil
@@ -379,12 +447,12 @@ end)
 local function toggleScript()
     enabled = not enabled
     if enabled then
-        statusLabel.Text = "Trạng thái: ĐANG BẬT (Chỉ nhảy CanCollide=true)"
+        statusLabel.Text = "Trạng thái: BẬT"
         statusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
         toggleButton.Text = "BẤM ĐỂ TẮT"
         toggleButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
         startObstacleJump()
-        print("✅ AUTO EGG + NHẢY CHỈ VẬT CẢN CÓ CANCOLLIDE = TRUE")
+        print("✅ AUTO EGG")
     else
         statusLabel.Text = "Trạng thái: TẮT"
         statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
