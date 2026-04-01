@@ -38,6 +38,13 @@ local forbiddenZones = {
     },
 
 	{
+        minX = 536,
+        maxX = 653,
+        minZ = -270,
+        maxZ = -114
+    },
+
+	{
 		minX = 15,
 		maxX = 65,
 		minZ = -459,
