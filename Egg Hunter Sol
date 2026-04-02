@@ -20,6 +20,38 @@ local espFolder = Instance.new("Folder")
 espFolder.Name = "EggESP"
 espFolder.Parent = workspace
 
+local function isEgg(v)
+    if not v then return false end
+    
+    -- Trứng cũ (MeshPart)
+    if v:IsA("MeshPart") and string.find(v.Name, "point_egg_") then
+        return true
+    end
+    
+    -- Trứng potion mới (Model)
+    if v:IsA("Model") and (v.Name == "random_potion_egg_1" or v.Name == "random_potion_egg_2") then
+        return true
+    end
+    
+    return false
+end
+
+local function getEggPosition(egg)
+    if egg:IsA("MeshPart") then
+        return egg.Position
+    elseif egg:IsA("Model") then
+        local root = egg:FindFirstChild("HumanoidRootPart") or egg:FindFirstChildWhichIsA("BasePart")
+        if root then
+            return root.Position
+        else
+            return egg:GetPivot().Position  -- fallback
+        end
+    end
+    return nil
+end
+
+
+
 
 local forbiddenZones = {
     {
@@ -38,7 +70,7 @@ local forbiddenZones = {
     },
 
 	{
-        minX = 536,
+        minX = 514,
         maxX = 653,
         minZ = -270,
         maxZ = -114
@@ -65,32 +97,31 @@ end
 local function createESP(egg)
     if egg:FindFirstChild("EggHighlight") then return end
 
-    local pos = egg.Position
-    local inForbidden = isInForbiddenZone(pos)
+    local pos = getEggPosition(egg) or egg:GetPivot().Position
+    local inForbidden = isInForbiddenZone(pos) and string.find(egg.Name, "point_egg_")
 
-    -- Highlight
     local highlight = Instance.new("Highlight")
     highlight.Name = "EggHighlight"
 
     if inForbidden then
-        highlight.FillColor = Color3.fromRGB(255, 50, 50) -- đỏ
+        highlight.FillColor = Color3.fromRGB(255, 50, 50)
         highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
     else
-        highlight.FillColor = Color3.fromRGB(255, 255, 0)
-        highlight.OutlineColor = Color3.fromRGB(255, 180, 0)
+        highlight.FillColor = Color3.fromRGB(0, 255, 200)   -- màu xanh ngọc cho potion egg
+        highlight.OutlineColor = Color3.fromRGB(0, 255, 150)
     end
 
     highlight.FillTransparency = 0.35
     highlight.OutlineTransparency = 0
-    highlight.Adornee = egg
+    highlight.Adornee = egg:IsA("Model") and egg.PrimaryPart or egg
     highlight.Parent = egg
 
     -- Billboard
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "EggESPBillboard"
-    billboard.Size = UDim2.new(0, 120, 0, 40)
+    billboard.Size = UDim2.new(0, 140, 0, 45)
     billboard.AlwaysOnTop = true
-    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
     billboard.Parent = egg
 
     local label = Instance.new("TextLabel")
@@ -100,18 +131,24 @@ local function createESP(egg)
     label.TextScaled = true
     label.Font = Enum.Font.GothamBold
 
-    local num = string.match(egg.Name, "point_egg_(%d+)")
-
-    if inForbidden then
-        label.Text = "❌ Egg " .. (num or "?")
-        label.TextColor3 = Color3.fromRGB(255, 80, 80)
+    if string.find(egg.Name, "point_egg_") then
+        local num = string.match(egg.Name, "point_egg_(%d+)") or "?"
+        if inForbidden then
+            label.Text = "❌ Egg " .. num
+            label.TextColor3 = Color3.fromRGB(255, 80, 80)
+        else
+            label.Text = "🥚 Egg " .. num
+            label.TextColor3 = Color3.fromRGB(255, 255, 0)
+        end
     else
-        label.Text = "🥚 Egg " .. (num or "?")
-        label.TextColor3 = Color3.fromRGB(255, 255, 0)
+        -- Potion Egg
+        label.Text = "🧪 Potion Egg"
+        label.TextColor3 = Color3.fromRGB(0, 255, 200)
     end
 
     label.Parent = billboard
 end
+
 
 local function clearESP()
     for _, v in pairs(workspace:GetDescendants()) do
@@ -136,16 +173,17 @@ local function toggleESP()
     end
 end
 
+
+-- Cập nhật scanEggs()
 local function scanEggs()
     if not espEnabled then return end
 
     for _, v in pairs(workspace:GetDescendants()) do
-        if v:IsA("MeshPart") and string.find(v.Name, "point_egg_") then
+        if isEgg(v) then
             createESP(v)
         end
     end
 end
-
 -- Auto update ESP
 task.spawn(function()
     while true do
@@ -321,21 +359,24 @@ end
 
 -- ==================== TÌM TRỨNG & PROMPT ====================
 
+
+
 local function findBestEgg()
     local closestEgg = nil
     local closestDistance = math.huge
 
     for _, v in pairs(workspace:GetDescendants()) do
-        if v:IsA("MeshPart") and string.find(v.Name, "point_egg_") then
+        if isEgg(v) then
             
-            local pos = v.Position
+            local pos = getEggPosition(v)
+            if not pos then continue end
 
-            -- ❌ bỏ qua vùng cấm
-            if isInForbiddenZone(pos) then
+            -- ❌ Bỏ qua vùng cấm (chỉ áp dụng cho point_egg_, potion egg thì tùy bạn)
+            if string.find(v.Name, "point_egg_") and isInForbiddenZone(pos) then
                 continue
             end
 
-            -- 📏 tính khoảng cách
+            -- 📏 Tính khoảng cách
             local dist = (hrp.Position - pos).Magnitude
 
             if dist < closestDistance then
@@ -350,11 +391,21 @@ end
 
 local function triggerProximityPrompt(egg)
     if not egg then return end
-    local prompt = egg:FindFirstChildOfClass("ProximityPrompt") or egg:FindFirstChild("ProximityPrompt", true)
+    
+    local prompt = egg:FindFirstChildOfClass("ProximityPrompt")
+    
+    -- Nếu không tìm thấy trực tiếp, tìm sâu hơn (đặc biệt với Model)
+    if not prompt then
+        prompt = egg:FindFirstChild("ProximityPrompt", true)
+    end
+    
     if prompt then
         prompt:InputHoldBegin()
-        task.wait(0.15)
+        task.wait(0.12)
         prompt:InputHoldEnd()
+        print("✅ Đã nhặt: " .. egg.Name)
+    else
+        print("⚠️ Không tìm thấy ProximityPrompt ở " .. egg.Name)
     end
 end
 
@@ -397,19 +448,20 @@ local function goToBestEgg()
     local bestEgg = currentTargetEgg
     if not bestEgg then return end
 
-    local dist = (hrp.Position - bestEgg.Position).Magnitude
+    local eggPos = getEggPosition(bestEgg)
+if not eggPos then return end
 
-    -- Nếu gần thì nhặt
-    if dist <= 10 then
-        triggerProximityPrompt(bestEgg)
+local dist = (hrp.Position - eggPos).Magnitude
 
-        -- ✅ Sau khi nhặt xong → reset target để chọn trứng mới (lúc này mới ưu tiên trứng lớn hơn)
-        currentTargetEgg = nil
+-- Nếu gần thì nhặt
+if dist <= 10 then
+    triggerProximityPrompt(bestEgg)
+    currentTargetEgg = nil
 
-        humanoid:MoveTo(hrp.Position)
-        task.wait(0.8)
-        return
-    end
+    humanoid:MoveTo(hrp.Position)
+    task.wait(0.8)
+    return
+end
 
     -- Pathfinding giữ nguyên
     local path = PathfindingService:CreatePath({
@@ -427,18 +479,18 @@ local function goToBestEgg()
     })
 
     local success = pcall(function()
-        path:ComputeAsync(hrp.Position, bestEgg.Position + Vector3.new(0, 3, 0))
-    end)
+    path:ComputeAsync(hrp.Position, eggPos + Vector3.new(0, 3, 0))
+end)
 
-    if success and path.Status == Enum.PathStatus.Success then
-        for _, wp in ipairs(path:GetWaypoints()) do
-            if not enabled then break end
-            humanoid:MoveTo(wp.Position)
-            if not humanoid.MoveToFinished:Wait(2.5) then break end
-        end
-    else
-        humanoid:MoveTo(bestEgg.Position + Vector3.new(0, 4, 0))
+if success and path.Status == Enum.PathStatus.Success then
+    for _, wp in ipairs(path:GetWaypoints()) do
+        if not enabled then break end
+        humanoid:MoveTo(wp.Position)
+        if not humanoid.MoveToFinished:Wait(2.5) then break end
     end
+else
+    humanoid:MoveTo(eggPos + Vector3.new(0, 4, 0))
+end
 end
 
 task.spawn(function()
