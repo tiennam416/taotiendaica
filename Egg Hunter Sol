@@ -310,7 +310,7 @@ local function startObstacleJump()
         if tick() % 0.05 > 0.016 then return end
 
         local origin = hrp.Position + Vector3.new(0, -1.5, 0)
-        local forward = hrp.CFrame.LookVector * 5
+        local forward = hrp.CFrame.LookVector * 6
 
         local result = workspace:Raycast(origin, forward, raycastParams)
         if not result then return end
