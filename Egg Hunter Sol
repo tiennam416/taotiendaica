@@ -307,38 +307,51 @@ local function startObstacleJump()
     obstacleConnection = RunService.Heartbeat:Connect(function()
         if not enabled or not hrp or not humanoid then return end
 
-        -- ⏱ giảm tần suất check (mỗi ~0.05s)
+        -- ⏱ giảm tần suất check (~0.05s)
         if tick() % 0.05 > 0.016 then return end
 
         local origin = hrp.Position + Vector3.new(0, -1.5, 0)
-        local forward = hrp.CFrame.LookVector * 6
 
-        local result = workspace:Raycast(origin, forward, raycastParams)
-        if not result then return end
+        local forward = hrp.CFrame.LookVector
+        local right = hrp.CFrame.RightVector
 
-        local part = result.Instance
-        if not part or not part.CanCollide then return end
+        -- 🔥 3 hướng: giữa, trái, phải
+        local directions = {
+            forward * 6,
+            (forward - right * 0.6).Unit * 7, -- trái
+            (forward + right * 0.6).Unit * 7,  -- phải
+        }
 
-        -- 🔍 check chiều cao vật cản (1 ray duy nhất phía trên)
-        local highCheck = workspace:Raycast(
-            origin + Vector3.new(0, 3.5, 0),
-            forward,
-            raycastParams
-        )
+        for _, dir in ipairs(directions) do
+            local result = workspace:Raycast(origin, dir, raycastParams)
 
-        -- ❌ nếu tia trên cũng trúng cùng object → tường cao
-        if highCheck and highCheck.Instance == part then
-            -- né nhẹ thay vì spam xoay random mạnh
-            hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(25), 0)
-            return
-        end
+            if result then
+                local part = result.Instance
+                if part and part.CanCollide then
 
-        -- ✅ vật thấp → nhảy (có cooldown)
-        if tick() - lastJump > JUMP_COOLDOWN then
-            lastJump = tick()
+                    -- 🔍 check chiều cao vật cản
+                    local highCheck = workspace:Raycast(
+                        origin + Vector3.new(0, 3.5, 0),
+                        dir,
+                        raycastParams
+                    )
 
-            humanoid.JumpPower = 58
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    -- ❌ tường cao → xoay nhẹ
+                    if highCheck and highCheck.Instance == part then
+                        hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(20), 0)
+                        return
+                    end
+
+                    -- ✅ vật thấp → nhảy
+                    if tick() - lastJump > JUMP_COOLDOWN then
+                        lastJump = tick()
+
+                        humanoid.JumpPower = 58
+                        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                        return
+                    end
+                end
+            end
         end
     end)
 end
