@@ -13,6 +13,7 @@ local enabled = false
 local obstacleConnection = nil
 
 humanoid.WalkSpeed = 20
+humanoid.JumpHeight = 8.5
 --=====================ESP=====================
 
 -- ==================== ESP TRỨNG ====================
