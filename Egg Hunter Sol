@@ -13,7 +13,6 @@ local enabled = false
 local obstacleConnection = nil
 
 humanoid.WalkSpeed = 20
-humanoid.JumpHeight = 8.5
 --=====================ESP=====================
 
 -- ==================== ESP TRỨNG ====================
@@ -25,16 +24,12 @@ espFolder.Parent = workspace
 local function isEgg(v)
     if not v then return false end
     
-    -- Trứng cũ (MeshPart)
-    if v:IsA("MeshPart") and string.find(v.Name, "point_egg_") then
-        return true
+    if v:IsA("BasePart") or v:IsA("Model") then
+        if string.find(string.lower(v.Name), "egg") then
+            return true
+        end
     end
-    
-    -- Trứng potion mới (Model)
-    if v:IsA("Model") and (v.Name == "random_potion_egg_1" or v.Name == "random_potion_egg_2") then
-        return true
-    end
-    
+
     return false
 end
 
@@ -57,9 +52,9 @@ end
 
 local forbiddenZones = {
     {
-        minX = -100,
+        minX = -150,
         maxX = 20,
-        minZ = -145,
+        minZ = -170,
         maxZ = -70
     },
 
@@ -97,28 +92,52 @@ local function isInForbiddenZone(pos)
 end
 
 local function createESP(egg)
-    if egg:FindFirstChild("EggHighlight") then return end
+    if not egg or egg:FindFirstChild("EggHighlight") then return end
 
     local pos = getEggPosition(egg) or egg:GetPivot().Position
-    local inForbidden = isInForbiddenZone(pos) and string.find(egg.Name, "point_egg_")
+    local nameLower = string.lower(egg.Name)
 
+    local isPointEgg = string.find(nameLower, "point_egg")
+    local isPotionEgg = string.find(nameLower, "potion")
+    local isSpecialEgg = string.find(nameLower, "egg") and not isPointEgg and not isPotionEgg
+
+    local inForbidden = isInForbiddenZone(pos) and isPointEgg
+
+    -- ===== Highlight =====
     local highlight = Instance.new("Highlight")
     highlight.Name = "EggHighlight"
 
     if inForbidden then
         highlight.FillColor = Color3.fromRGB(255, 50, 50)
         highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
-    else
-        highlight.FillColor = Color3.fromRGB(0, 255, 200)   -- màu xanh ngọc cho potion egg
+
+    elseif isPotionEgg then
+        highlight.FillColor = Color3.fromRGB(0, 255, 200)
         highlight.OutlineColor = Color3.fromRGB(0, 255, 150)
+
+    elseif isPointEgg then
+        highlight.FillColor = Color3.fromRGB(255, 255, 0)
+        highlight.OutlineColor = Color3.fromRGB(255, 200, 0)
+
+    else
+        -- 🌈 trứng lạ / event
+        highlight.FillColor = Color3.fromRGB(180, 0, 255)
+        highlight.OutlineColor = Color3.fromRGB(255, 0, 255)
     end
 
     highlight.FillTransparency = 0.35
     highlight.OutlineTransparency = 0
-    highlight.Adornee = egg:IsA("Model") and egg.PrimaryPart or egg
+
+    -- FIX lỗi model không có PrimaryPart
+    if egg:IsA("Model") then
+        highlight.Adornee = egg.PrimaryPart or egg:FindFirstChildWhichIsA("BasePart")
+    else
+        highlight.Adornee = egg
+    end
+
     highlight.Parent = egg
 
-    -- Billboard
+    -- ===== Billboard =====
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "EggESPBillboard"
     billboard.Size = UDim2.new(0, 140, 0, 45)
@@ -133,8 +152,9 @@ local function createESP(egg)
     label.TextScaled = true
     label.Font = Enum.Font.GothamBold
 
-    if string.find(egg.Name, "point_egg_") then
-        local num = string.match(egg.Name, "point_egg_(%d+)") or "?"
+    -- ===== TEXT =====
+    if isPointEgg then
+        local num = string.match(egg.Name, "(%d+)") or "?"
         if inForbidden then
             label.Text = "❌ Egg " .. num
             label.TextColor3 = Color3.fromRGB(255, 80, 80)
@@ -142,10 +162,14 @@ local function createESP(egg)
             label.Text = "🥚 Egg " .. num
             label.TextColor3 = Color3.fromRGB(255, 255, 0)
         end
-    else
-        -- Potion Egg
+
+    elseif isPotionEgg then
         label.Text = "🧪 Potion Egg"
         label.TextColor3 = Color3.fromRGB(0, 255, 200)
+
+    else
+        label.Text = "🌈 Special Egg"
+        label.TextColor3 = Color3.fromRGB(200, 100, 255)
     end
 
     label.Parent = billboard
@@ -180,7 +204,7 @@ end
 local function scanEggs()
     if not espEnabled then return end
 
-    for _, v in pairs(workspace:GetDescendants()) do
+    for _, v in pairs(workspace:GetChildren()) do -- ❌ bỏ GetDescendants
         if isEgg(v) then
             createESP(v)
         end
@@ -307,42 +331,37 @@ local function startObstacleJump()
     obstacleConnection = RunService.Heartbeat:Connect(function()
         if not enabled or not hrp or not humanoid then return end
 
-        -- ⏱ giảm tần suất check (~0.05s)
         if tick() % 0.05 > 0.016 then return end
 
-        local origin = hrp.Position + Vector3.new(0, -1.5, 0)
+        local basePos = hrp.Position
+        local forward = hrp.CFrame.LookVector * 6
 
-        local forward = hrp.CFrame.LookVector
-        local right = hrp.CFrame.RightVector
-
-        -- 🔥 3 hướng: giữa, trái, phải
-        local directions = {
-            forward * 6,
-            (forward - right * 0.6).Unit * 7, -- trái
-            (forward + right * 0.6).Unit * 7,  -- phải
+        local heights = {
+            Vector3.new(0, -2, 0), -- chân
+            Vector3.new(0, 0, 0),  -- thân
+            Vector3.new(0, 2, 0),  -- đầu
         }
 
-        for _, dir in ipairs(directions) do
-            local result = workspace:Raycast(origin, dir, raycastParams)
+        for _, offset in ipairs(heights) do
+            local origin = basePos + offset
+            local result = workspace:Raycast(origin, forward, raycastParams)
 
             if result then
                 local part = result.Instance
                 if part and part.CanCollide then
 
-                    -- 🔍 check chiều cao vật cản
                     local highCheck = workspace:Raycast(
-                        origin + Vector3.new(0, 3.5, 0),
-                        dir,
+                        basePos + Vector3.new(0, 3.5, 0),
+                        forward,
                         raycastParams
                     )
 
-                    -- ❌ tường cao → xoay nhẹ
                     if highCheck and highCheck.Instance == part then
+                        -- ❌ tường cao → xoay
                         hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(20), 0)
                         return
                     end
 
-                    -- ✅ vật thấp → nhảy
                     if tick() - lastJump > JUMP_COOLDOWN then
                         lastJump = tick()
 
@@ -370,20 +389,17 @@ local function findBestEgg()
     local closestEgg = nil
     local closestDistance = math.huge
 
-    for _, v in pairs(workspace:GetDescendants()) do
+    for _, v in pairs(workspace:GetChildren()) do -- ❌ chỉ lấy object trực tiếp
         if isEgg(v) then
             
             local pos = getEggPosition(v)
             if not pos then continue end
 
-            -- ❌ Bỏ qua vùng cấm (chỉ áp dụng cho point_egg_, potion egg thì tùy bạn)
-            if string.find(v.Name, "point_egg_") and isInForbiddenZone(pos) then
+            if isInForbiddenZone(pos) then
                 continue
             end
 
-            -- 📏 Tính khoảng cách
             local dist = (hrp.Position - pos).Magnitude
-
             if dist < closestDistance then
                 closestDistance = dist
                 closestEgg = v
@@ -542,6 +558,8 @@ local VirtualUser = game:GetService("VirtualUser")
 task.spawn(function()
     while true do
         task.wait(300) -- 300 giây = 5 phút
+		humanoid.WalkSpeed = 20
+		
         
         -- Giả lập click chuột (tránh AFK / tự nhấn màn hình)
         VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
