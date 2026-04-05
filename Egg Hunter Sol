@@ -337,7 +337,7 @@ local function startObstacleJump()
         local forward = hrp.CFrame.LookVector * 6
 
         local heights = {
-            Vector3.new(0, -2, 0), -- chân
+            Vector3.new(0, -1.85, 0), -- chân
             Vector3.new(0, 0, 0),  -- thân
             Vector3.new(0, 2, 0),  -- đầu
         }
