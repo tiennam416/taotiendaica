@@ -1,3 +1,16 @@
+local player = game:GetService("Players").LocalPlayer
+local gui = player.PlayerGui.MainInterface
+local vim = game:GetService("VirtualInputManager")
+local RunService = game:GetService("RunService")
+
+local obstacleConnection = nil
+local lastJump = 0
+local JUMP_COOLDOWN = 0.35
+
+local raycastParams = RaycastParams.new()
+raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+raycastParams.IgnoreWater = true
+
 -- 🖥️ CREATE GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Parent = game.CoreGui
@@ -199,16 +212,88 @@ local auto = false
 local sellLimit = 10
 local minimized = false
 
+local function startObstacleJump()
+	if obstacleConnection then return end
+
+	obstacleConnection = RunService.Heartbeat:Connect(function()
+		if not auto then return end
+
+		-- Đảm bảo có character
+		local character = player.Character or player.CharacterAdded:Wait()
+		if not character then return end
+		
+		local humanoid = character:FindFirstChild("Humanoid")
+		local hrp = character:FindFirstChild("HumanoidRootPart")
+		if not humanoid or not hrp then return end
+
+		raycastParams.FilterDescendantsInstances = {character}
+
+		local basePos = hrp.Position
+		local forward = hrp.CFrame.LookVector * 6
+
+		local heights = {
+			Vector3.new(0, -1.85, 0), -- chân
+			Vector3.new(0, 0, 0),     -- thân
+			Vector3.new(0, 2, 0),     -- đầu
+		}
+
+		for _, offset in ipairs(heights) do
+			local origin = basePos + offset
+			local result = workspace:Raycast(origin, forward, raycastParams)
+
+			if result then
+				local part = result.Instance
+				
+				if part and part.CanCollide then
+					
+					-- check tường cao
+					local highCheck = workspace:Raycast(
+						basePos + Vector3.new(0, 3.5, 0),
+						forward,
+						raycastParams
+					)
+
+					if highCheck and highCheck.Instance == part then
+						-- ❌ tường cao → xoay
+						hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(20), 0)
+						return
+					end
+
+					-- ✅ vật thấp → nhảy
+					if tick() - lastJump > JUMP_COOLDOWN then
+						lastJump = tick()
+						humanoid.JumpPower = 58
+						humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+						return
+					end
+				end
+			end
+		end
+	end)
+end
+
+local function stopObstacleJump()
+	if obstacleConnection then
+		obstacleConnection:Disconnect()
+		obstacleConnection = nil
+	end
+end
+
 -- 🔘 TOGGLE
 Toggle.MouseButton1Click:Connect(function()
 	auto = not auto
+	
 	if auto then
 		Toggle.Text = "ON"
-		Toggle.BackgroundColor3 = Color3.fromRGB(0,170,0)
+		Toggle.BackgroundColor3 = Color3.fromRGB(0,170,0)		
+
 		workspace.Map.Miscs.FishShop.NPC.ProximityPrompt.Enabled = false
 	else
 		Toggle.Text = "OFF"
 		Toggle.BackgroundColor3 = Color3.fromRGB(170,0,0)
+
+		stopObstacleJump() -- ❌ tắt
+
 		workspace.Map.Miscs.FishShop.NPC.ProximityPrompt.Enabled = true
 	end
 end)
@@ -227,9 +312,7 @@ Minus.MouseButton1Click:Connect(function()
 end)
 
 
-local player = game:GetService("Players").LocalPlayer
-local gui = player.PlayerGui.MainInterface
-local vim = game:GetService("VirtualInputManager")
+
 
 local camera = workspace.CurrentCamera
 
@@ -250,6 +333,40 @@ local function clickScale(px, py)
 	vim:SendMouseButtonEvent(x, y, 0, true, game, 0)
 	task.wait(0.1)
 	vim:SendMouseButtonEvent(x, y, 0, false, game, 0)
+end
+
+local PathfindingService = game:GetService("PathfindingService")
+
+local function smartMoveTo(targetPos)
+	local character = player.Character or player.CharacterAdded:Wait()
+	local humanoid = character:WaitForChild("Humanoid")
+	local hrp = character:WaitForChild("HumanoidRootPart")
+
+	startObstacleJump()
+
+	local path = PathfindingService:CreatePath({
+		AgentRadius = 3,
+		AgentHeight = 6,
+		AgentCanJump = true,
+		WaypointSpacing = 3,
+	})
+
+	local success = pcall(function()
+		path:ComputeAsync(hrp.Position, targetPos)
+	end)
+
+	if success and path.Status == Enum.PathStatus.Success then
+		for _, wp in ipairs(path:GetWaypoints()) do
+			humanoid:MoveTo(wp.Position)
+			if not humanoid.MoveToFinished:Wait(2) then
+				break
+			end
+		end
+	else
+		-- fallback nếu path fail
+		humanoid:MoveTo(targetPos)
+	end
+	stopObstacleJump()
 end
 
 local movingBar
@@ -330,42 +447,6 @@ local SHOP_POS = Vector3.new(98, 107.5, -296.17)
 
 -- 🚶 MOVE
 local JUMP_POS = Vector3.new(72.3, 100, -295.2)
-
-local function moveTo(pos)
-	local char = player.Character or player.CharacterAdded:Wait()
-	local humanoid = char:WaitForChild("Humanoid")
-	local root = char:WaitForChild("HumanoidRootPart")
-
-	-- đi tới jump
-	humanoid:MoveTo(JUMP_POS)
-
-	local t = tick()
-	while (root.Position - JUMP_POS).Magnitude > 3 do
-		if tick() - t > 5 then
-			warn("kẹt JUMP_POS")
-			break
-		end
-		task.wait(0.2)
-	end
-
-	repeat task.wait() until humanoid.FloorMaterial ~= Enum.Material.Air
-
-	humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-	task.wait(0.05)
-
-	-- đi tới đích
-	humanoid:MoveTo(pos)
-
-	t = tick()
-	while (root.Position - pos).Magnitude > 5 do -- tăng lên 5 cho dễ tới
-		if tick() - t > 8 then
-			warn("kẹt FISH_POS")
-			break
-		end
-		task.wait(0.1)
-	end
-end
-
 -- 🛒 SHOP
 local function openShop()
 	if selling then return end
@@ -374,7 +455,7 @@ local function openShop()
 	local success, err = pcall(function()
 		print("ĐI TỚI SHOP...")
         StatusText.Text = "Status: Going to shop..."
-		moveTo(SHOP_POS)
+		smartMoveTo(SHOP_POS)
 		
 		task.wait(1)
 		StatusText.Text = "Status: Selling..."
@@ -404,7 +485,7 @@ local function openShop()
 		countFish = 0
         StatusText.Text = "Status: Returning..."
 		print("QUAY LẠI...")
-		moveTo(FISH_POS)
+		smartMoveTo(FISH_POS)
 	end)
 
 	if not success then
