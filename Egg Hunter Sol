@@ -22,20 +22,35 @@ player.CharacterAdded:Connect(function(char)
 end)
 humanoid.WalkSpeed = 20
 -- ================== MAIN GUI ==================
+
+local function autoText(label, min, max)
+    local cam = workspace.CurrentCamera
+    local size = cam.ViewportSize.X
+
+    local scale = math.clamp(size / 1920, 0.6, 1)
+    label.TextScaled = false
+    label.TextSize = math.floor(min + (max - min) * scale)
+end
+
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "MultiFarmGUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = PlayerGui
 
 local Main = Instance.new("Frame")
-Main.Size = UDim2.new(0, 600, 0, 360)
-Main.Position = UDim2.new(0.5, -300, 0.5, -190)
+Main.Size = UDim2.new(0.85, 0, 0.75, 0)
+Main.Position = UDim2.new(0.075, 0, 0.125, 0)
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 Main.BackgroundTransparency = 0.1
 Main.Active = true
 Main.Draggable = true
 Main.Parent = ScreenGui
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 16)
+
+local sizeConstraint = Instance.new("UISizeConstraint")
+sizeConstraint.MaxSize = Vector2.new(650, 400)
+sizeConstraint.MinSize = Vector2.new(300, 250)
+sizeConstraint.Parent = Main
 
 local strokeMain = Instance.new("UIStroke")
 strokeMain.Color = Color3.fromRGB(100, 200, 255)
@@ -55,14 +70,15 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 1, 0)
 Title.BackgroundTransparency = 1
 Title.Text = "🔥Sol's RNG LỌ"
-Title.TextSize = 30
+Title.TextScaled = false
+autoText(Title, 18, 28)
 Title.Font = Enum.Font.GothamBold
 Title.TextColor3 = Color3.new(1,1,1)
 Title.Parent = TitleBar
 
 -- ================== SIDEBAR ==================
 local Sidebar = Instance.new("Frame")
-Sidebar.Size = UDim2.new(0, 160, 1, -60)
+Sidebar.Size = UDim2.new(0.25, 0, 1, -60)
 Sidebar.Position = UDim2.new(0, 0, 0, 60)
 Sidebar.BackgroundColor3 = Color3.fromRGB(22,22,30)
 Sidebar.BackgroundTransparency = 0.5
@@ -81,8 +97,8 @@ pad.Parent = Sidebar
 
 -- ================== CONTENT ==================
 local Content = Instance.new("Frame")
-Content.Size = UDim2.new(1, -160, 1, -60)
-Content.Position = UDim2.new(0,160,0,60)
+Content.Size = UDim2.new(0.75, 0, 1, -60)
+Content.Position = UDim2.new(0.25, 0, 0, 60)
 Content.BackgroundTransparency = 1
 Content.Parent = Main
 
@@ -90,10 +106,13 @@ Content.Parent = Main
 local tabs = {}
 local function createTab(name, icon)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1,0,0,50)
+    --btn.Size = UDim2.new(1,0,0,50)
     btn.BackgroundColor3 = Color3.fromRGB(35,35,45)
     btn.Text = icon.." "..name
-    btn.TextSize = 25
+    
+	btn.Size = UDim2.new(1,0,0.08,0)
+	btn.TextScaled = false
+	autoText(btn, 14, 22)
     btn.Font = Enum.Font.GothamSemibold
     btn.TextColor3 = Color3.new(1,1,1)
     btn.Parent = Sidebar
@@ -149,11 +168,12 @@ tabs[1].stroke.Transparency = 0
 -- ================== TOGGLE FUNCTION ==================
 local function createToggle(parent, text, posY, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 350, 0, 45)
-    btn.Position = UDim2.new(0, 30, 0, posY)
+    btn.Size = UDim2.new(0.8, 0, 0.1, 0)
+	btn.Position = UDim2.new(0.1, 0, 0, posY)
+	btn.TextScaled = false
+	autoText(btn, 14, 20)
     btn.BackgroundColor3 = Color3.fromRGB(40,40,55)
-    btn.Text = text..": OFF"
-    btn.TextSize = 20
+    btn.Text = text..": OFF"    
     btn.Font = Enum.Font.GothamSemibold
     btn.TextColor3 = Color3.new(1,1,1)
     btn.BackgroundTransparency = 0.5
@@ -178,7 +198,7 @@ end
 
 -- ================== FLOAT BUTTON ==================
 local ToggleButton = Instance.new("ImageButton")
-ToggleButton.Size = UDim2.new(0, 60, 0, 60)
+ToggleButton.Size = UDim2.new(0.04, 0, 0.08, 0)
 ToggleButton.Position = UDim2.new(0, 20, 0.5, -30)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 ToggleButton.BackgroundTransparency = 0.1
