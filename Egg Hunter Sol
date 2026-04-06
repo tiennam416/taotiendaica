@@ -799,7 +799,7 @@ local function goToBestEgg()
     if not egg then return end
 
     local pos = getEggPosition(egg)
-    if (hrp.Position - pos).Magnitude <= 4 then
+    if (hrp.Position - pos).Magnitude <= 10 then
         triggerProximityPrompt(egg)
         task.wait(0.8)
         return
