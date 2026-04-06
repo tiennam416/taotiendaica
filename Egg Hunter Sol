@@ -1,453 +1,262 @@
 local player = game.Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+local PlayerGui = player:WaitForChild("PlayerGui")
 
+local gui = PlayerGui:WaitForChild("MainInterface")
+
+local vim = game:GetService("VirtualInputManager")
+local PathfindingService = game:GetService("PathfindingService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser")
+
+-- ✅ character phải khai báo TRƯỚC
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local hrp = character:WaitForChild("HumanoidRootPart")
 
-local PathfindingService = game:GetService("PathfindingService")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-
-local enabled = false
-local obstacleConnection = nil
-
+-- 🔁 Auto cập nhật khi respawn
+player.CharacterAdded:Connect(function(char)
+    character = char
+    humanoid = char:WaitForChild("Humanoid")
+    hrp = char:WaitForChild("HumanoidRootPart")
+end)
 humanoid.WalkSpeed = 20
---=====================ESP=====================
-
--- ==================== ESP TRỨNG ====================
-local espEnabled = true
-local espFolder = Instance.new("Folder")
-espFolder.Name = "EggESP"
-espFolder.Parent = workspace
-
-local function isEgg(v)
-    if not v then return false end
-    
-    if v:IsA("BasePart") or v:IsA("Model") then
-        if string.find(string.lower(v.Name), "egg") then
-            return true
-        end
-    end
-
-    return false
-end
-
-local function getEggPosition(egg)
-    if egg:IsA("MeshPart") then
-        return egg.Position
-    elseif egg:IsA("Model") then
-        local root = egg:FindFirstChild("HumanoidRootPart") or egg:FindFirstChildWhichIsA("BasePart")
-        if root then
-            return root.Position
-        else
-            return egg:GetPivot().Position  -- fallback
-        end
-    end
-    return nil
-end
-
-
-
-
-local forbiddenZones = {
-    {
-        minX = -150,
-        maxX = 20,
-        minZ = -170,
-        maxZ = -70
-    },
-
-    -- ✅ VÙNG MỚI BẠN YÊU CẦU
-    {
-        minX = 30,
-        maxX = 239,
-        minZ = -700,
-        maxZ = -580
-    },
-
-	{
-        minX = 514,
-        maxX = 653,
-        minZ = -270,
-        maxZ = -114
-    },
-
-	{
-		minX = 15,
-		maxX = 65,
-		minZ = -459,
-		maxZ = -409
-	}
-}
-
-local function isInForbiddenZone(pos)
-    for _, zone in pairs(forbiddenZones) do
-        if pos.X >= zone.minX and pos.X <= zone.maxX
-        and pos.Z >= zone.minZ and pos.Z <= zone.maxZ then
-            return true
-        end
-    end
-    return false
-end
-
-local function createESP(egg)
-    if not egg or egg:FindFirstChild("EggHighlight") then return end
-
-    local pos = getEggPosition(egg) or egg:GetPivot().Position
-    local nameLower = string.lower(egg.Name)
-
-    local isPointEgg = string.find(nameLower, "point_egg")
-    local isPotionEgg = string.find(nameLower, "potion")
-    local isSpecialEgg = string.find(nameLower, "egg") and not isPointEgg and not isPotionEgg
-
-    local inForbidden = isInForbiddenZone(pos) and isPointEgg
-
-    -- ===== Highlight =====
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "EggHighlight"
-
-    if inForbidden then
-        highlight.FillColor = Color3.fromRGB(255, 50, 50)
-        highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
-
-    elseif isPotionEgg then
-        highlight.FillColor = Color3.fromRGB(0, 255, 200)
-        highlight.OutlineColor = Color3.fromRGB(0, 255, 150)
-
-    elseif isPointEgg then
-        highlight.FillColor = Color3.fromRGB(255, 255, 0)
-        highlight.OutlineColor = Color3.fromRGB(255, 200, 0)
-
-    else
-        -- 🌈 trứng lạ / event
-        highlight.FillColor = Color3.fromRGB(180, 0, 255)
-        highlight.OutlineColor = Color3.fromRGB(255, 0, 255)
-    end
-
-    highlight.FillTransparency = 0.35
-    highlight.OutlineTransparency = 0
-
-    -- FIX lỗi model không có PrimaryPart
-    if egg:IsA("Model") then
-        highlight.Adornee = egg.PrimaryPart or egg:FindFirstChildWhichIsA("BasePart")
-    else
-        highlight.Adornee = egg
-    end
-
-    highlight.Parent = egg
-
-    -- ===== Billboard =====
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "EggESPBillboard"
-    billboard.Size = UDim2.new(0, 140, 0, 45)
-    billboard.AlwaysOnTop = true
-    billboard.StudsOffset = Vector3.new(0, 3, 0)
-    billboard.Parent = egg
-
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 1, 0)
-    label.BackgroundTransparency = 1
-    label.TextStrokeTransparency = 0
-    label.TextScaled = true
-    label.Font = Enum.Font.GothamBold
-
-    -- ===== TEXT =====
-    if isPointEgg then
-        local num = string.match(egg.Name, "(%d+)") or "?"
-        if inForbidden then
-            label.Text = "❌ Egg " .. num
-            label.TextColor3 = Color3.fromRGB(255, 80, 80)
-        else
-            label.Text = "🥚 Egg " .. num
-            label.TextColor3 = Color3.fromRGB(255, 255, 0)
-        end
-
-    elseif isPotionEgg then
-        label.Text = "🧪 Potion Egg"
-        label.TextColor3 = Color3.fromRGB(0, 255, 200)
-
-    else
-        label.Text = "🌈 Special Egg"
-        label.TextColor3 = Color3.fromRGB(200, 100, 255)
-    end
-
-    label.Parent = billboard
-end
-
-
-local function clearESP()
-    for _, v in pairs(workspace:GetDescendants()) do
-        if v:IsA("MeshPart") and string.find(v.Name, "point_egg_") then
-            local h = v:FindFirstChild("EggHighlight")
-            local b = v:FindFirstChild("EggESPBillboard")
-
-            if h then h:Destroy() end
-            if b then b:Destroy() end
-        end
-    end
-end
-
-local function toggleESP()
-    espEnabled = not espEnabled
-
-    if espEnabled then
-        print("🟡 ESP ON")
-    else
-        print("⚫ ESP OFF")
-        clearESP()
-    end
-end
-
-
--- Cập nhật scanEggs()
-local function scanEggs()
-    if not espEnabled then return end
-
-    for _, v in pairs(workspace:GetChildren()) do -- ❌ bỏ GetDescendants
-        if isEgg(v) then
-            createESP(v)
-        end
-    end
-end
--- Auto update ESP
-task.spawn(function()
-    while true do
-        if espEnabled then
-            scanEggs()
-        end
-        task.wait(2)
-    end
-end)
-
--- ==================== UI ====================
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "EggHunterUI"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = playerGui
-
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 320, 0, 210)
-mainFrame.Position = UDim2.new(0.5, -160, 0.2, 0)
-mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-mainFrame.BorderSizePixel = 0
-mainFrame.Active = true
-mainFrame.Draggable = true
-mainFrame.Parent = screenGui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
-corner.Parent = mainFrame
-
-local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(0, 200, 255)
-stroke.Thickness = 2
-stroke.Parent = mainFrame
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 40)
-title.BackgroundTransparency = 1
-title.Text = "🍳 Egg Hunter"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextScaled = true
-title.Font = Enum.Font.GothamBold
-title.Parent = mainFrame
-
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, -20, 0, 30)
-statusLabel.Position = UDim2.new(0, 10, 0, 50)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Trạng thái: TẮT"
-statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-statusLabel.TextScaled = true
-statusLabel.Font = Enum.Font.Gotham
-statusLabel.Parent = mainFrame
-
-local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(0.9, 0, 0, 55)
-toggleButton.Position = UDim2.new(0.05, 0, 0, 95)
-toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-toggleButton.Text = "BẤM ĐỂ BẬT (N)"
-toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButton.TextScaled = true
-toggleButton.Font = Enum.Font.GothamBold
-toggleButton.Parent = mainFrame
-
-local espButton = Instance.new("TextButton")
-espButton.Size = UDim2.new(0.9, 0, 0, 40)
-espButton.Position = UDim2.new(0.05, 0, 0, 160)
-espButton.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
-espButton.Text = "ESP: BẬT"
-espButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-espButton.TextScaled = true
-espButton.Font = Enum.Font.GothamBold
-espButton.Parent = mainFrame
-
-local espCorner = Instance.new("UICorner")
-espCorner.CornerRadius = UDim.new(0, 8)
-espCorner.Parent = espButton
-
-espButton.MouseButton1Click:Connect(function()
-    toggleESP()
-
-    if espEnabled then
-        espButton.Text = "ESP: BẬT"
-        espButton.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
-    else
-        espButton.Text = "ESP: TẮT"
-        espButton.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
-    end
-end)
-
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 10)
-btnCorner.Parent = toggleButton
-
-local uiScale = Instance.new("UIScale")
-uiScale.Parent = mainFrame
-
-local function updateScale()
-    local viewportY = workspace.CurrentCamera.ViewportSize.Y
-    uiScale.Scale = math.clamp(viewportY / 1080, 0.75, 1.35)
-end
-updateScale()
-workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
-
-
-
--- ==================== RAYCAST CHỈ NHẢY KHI CANCOLLIDE = TRUE ====================
-local raycastParams = RaycastParams.new()
-raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-raycastParams.IgnoreWater = true
-
-local lastJump = 0
-local JUMP_COOLDOWN = 0.35
-
-local function startObstacleJump()
-    if obstacleConnection then return end
-
-    raycastParams.FilterDescendantsInstances = {character}
-
-    obstacleConnection = RunService.Heartbeat:Connect(function()
-        if not enabled or not hrp or not humanoid then return end
-
-        if tick() % 0.05 > 0.016 then return end
-
-        local basePos = hrp.Position
-        local forward = hrp.CFrame.LookVector * 6
-
-        local heights = {
-            Vector3.new(0, -1.85, 0), -- chân
-            Vector3.new(0, 0, 0),  -- thân
-            Vector3.new(0, 2, 0),  -- đầu
-        }
-
-        for _, offset in ipairs(heights) do
-            local origin = basePos + offset
-            local result = workspace:Raycast(origin, forward, raycastParams)
-
-            if result then
-                local part = result.Instance
-                if part and part.CanCollide then
-
-                    local highCheck = workspace:Raycast(
-                        basePos + Vector3.new(0, 3.5, 0),
-                        forward,
-                        raycastParams
-                    )
-
-                    if highCheck and highCheck.Instance == part then
-                        -- ❌ tường cao → xoay
-                        hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(20), 0)
-                        return
-                    end
-
-                    if tick() - lastJump > JUMP_COOLDOWN then
-                        lastJump = tick()
-
-                        humanoid.JumpPower = 58
-                        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                        return
-                    end
-                end
-            end
+-- ================== MAIN GUI ==================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "MultiFarmGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+local Main = Instance.new("Frame")
+Main.Size = UDim2.new(0, 600, 0, 360)
+Main.Position = UDim2.new(0.5, -300, 0.5, -190)
+Main.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+Main.BackgroundTransparency = 0.1
+Main.Active = true
+Main.Draggable = true
+Main.Parent = ScreenGui
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 16)
+
+local strokeMain = Instance.new("UIStroke")
+strokeMain.Color = Color3.fromRGB(100, 200, 255)
+strokeMain.Transparency = 0.6
+strokeMain.Thickness = 2
+strokeMain.Parent = Main
+
+-- ================== TITLE ==================
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 60)
+TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+TitleBar.BackgroundTransparency = 0.5
+TitleBar.Parent = Main
+Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 16)
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 1, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "🔥Sol's RNG LỌ"
+Title.TextSize = 30
+Title.Font = Enum.Font.GothamBold
+Title.TextColor3 = Color3.new(1,1,1)
+Title.Parent = TitleBar
+
+-- ================== SIDEBAR ==================
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.new(0, 160, 1, -60)
+Sidebar.Position = UDim2.new(0, 0, 0, 60)
+Sidebar.BackgroundColor3 = Color3.fromRGB(22,22,30)
+Sidebar.BackgroundTransparency = 0.5
+Sidebar.Parent = Main
+Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 16)
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0,10)
+layout.Parent = Sidebar
+
+local pad = Instance.new("UIPadding")
+pad.PaddingTop = UDim.new(0,10)
+pad.PaddingLeft = UDim.new(0,10)
+pad.PaddingRight = UDim.new(0,10)
+pad.Parent = Sidebar
+
+-- ================== CONTENT ==================
+local Content = Instance.new("Frame")
+Content.Size = UDim2.new(1, -160, 1, -60)
+Content.Position = UDim2.new(0,160,0,60)
+Content.BackgroundTransparency = 1
+Content.Parent = Main
+
+-- ================== TAB SYSTEM ==================
+local tabs = {}
+local function createTab(name, icon)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1,0,0,50)
+    btn.BackgroundColor3 = Color3.fromRGB(35,35,45)
+    btn.Text = icon.." "..name
+    btn.TextSize = 25
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Parent = Sidebar
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,10)
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(80,180,255)
+    stroke.Transparency = 1
+    stroke.Parent = btn
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1,0,1,0)
+    frame.BackgroundTransparency = 1
+    frame.Visible = false
+    frame.Parent = Content
+
+    btn.MouseEnter:Connect(function()
+        if not frame.Visible then
+            btn.BackgroundColor3 = Color3.fromRGB(50,50,70)
         end
     end)
-end
-local function stopObstacleJump()
-    if obstacleConnection then
-        obstacleConnection:Disconnect()
-        obstacleConnection = nil
-    end
-end
-
--- ==================== TÌM TRỨNG & PROMPT ====================
-
-
-
-local function findBestEgg()
-    local closestEgg = nil
-    local closestDistance = math.huge
-
-    for _, v in pairs(workspace:GetChildren()) do -- ❌ chỉ lấy object trực tiếp
-        if isEgg(v) then
-            
-            local pos = getEggPosition(v)
-            if not pos then continue end
-
-            if isInForbiddenZone(pos) then
-                continue
-            end
-
-            local dist = (hrp.Position - pos).Magnitude
-            if dist < closestDistance then
-                closestDistance = dist
-                closestEgg = v
-            end
+    btn.MouseLeave:Connect(function()
+        if not frame.Visible then
+            btn.BackgroundColor3 = Color3.fromRGB(35,35,45)
         end
-    end
+    end)
 
-    return closestEgg
+    table.insert(tabs, {button = btn, frame = frame, stroke = stroke})
+
+    btn.MouseButton1Click:Connect(function()
+        for _, t in pairs(tabs) do
+            t.frame.Visible = false
+            t.button.BackgroundColor3 = Color3.fromRGB(35,35,45)
+            t.stroke.Transparency = 1
+        end
+        frame.Visible = true
+        btn.BackgroundColor3 = Color3.fromRGB(60,60,90)
+        stroke.Transparency = 0
+    end)
+
+    return frame
 end
 
-local function triggerProximityPrompt(egg)
-    if not egg then return end
-    
-    local prompt = egg:FindFirstChildOfClass("ProximityPrompt")
-    
-    -- Nếu không tìm thấy trực tiếp, tìm sâu hơn (đặc biệt với Model)
-    if not prompt then
-        prompt = egg:FindFirstChild("ProximityPrompt", true)
-    end
-    
-    if prompt then
-        prompt:InputHoldBegin()
-        task.wait(0.12)
-        prompt:InputHoldEnd()
-        print("✅ Đã nhặt: " .. egg.Name)
-    else
-        print("⚠️ Không tìm thấy ProximityPrompt ở " .. egg.Name)
-    end
+-- ================== CREATE TABS ==================
+local FishFrame = createTab("FISH", "🎣")
+local EggFrame  = createTab("AUTO EGG", "🥚")
+
+-- Default tab
+tabs[1].frame.Visible = true
+tabs[1].button.BackgroundColor3 = Color3.fromRGB(60,60,90)
+tabs[1].stroke.Transparency = 0
+
+-- ================== TOGGLE FUNCTION ==================
+local function createToggle(parent, text, posY, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 350, 0, 45)
+    btn.Position = UDim2.new(0, 30, 0, posY)
+    btn.BackgroundColor3 = Color3.fromRGB(40,40,55)
+    btn.Text = text..": OFF"
+    btn.TextSize = 20
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.BackgroundTransparency = 0.5
+    btn.Parent = parent
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,10)
+
+    local enabled = false
+    btn.MouseButton1Click:Connect(function()
+        enabled = not enabled
+        if enabled then
+            btn.Text = text..": ON"
+            btn.BackgroundColor3 = Color3.fromRGB(0,200,120)
+        else
+            btn.Text = text..": OFF"
+            btn.BackgroundColor3 = Color3.fromRGB(40,40,55)
+        end
+        if callback then callback(enabled) end
+    end)
+    return btn
 end
 
----=============Né Nước,Cây===================================
+
+-- ================== FLOAT BUTTON ==================
+local ToggleButton = Instance.new("ImageButton")
+ToggleButton.Size = UDim2.new(0, 60, 0, 60)
+ToggleButton.Position = UDim2.new(0, 20, 0.5, -30)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+ToggleButton.BackgroundTransparency = 0.1
+ToggleButton.Image = "rbxassetid://123420848310049" -- 🔥 đổi ID logo nếu muốn
+ToggleButton.Parent = ScreenGui
+ToggleButton.Active = true
+ToggleButton.Draggable = true
+
+Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(1, 0)
+
+local strokeBtn = Instance.new("UIStroke")
+strokeBtn.Color = Color3.fromRGB(0, 200, 255)
+strokeBtn.Thickness = 2
+strokeBtn.Parent = ToggleButton
+
+-- Hiệu ứng hover
+ToggleButton.MouseEnter:Connect(function()
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+end)
+
+ToggleButton.MouseLeave:Connect(function()
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+end)
+
+-- Toggle menu
+local menuVisible = true
+ToggleButton.MouseButton1Click:Connect(function()
+    menuVisible = not menuVisible
+    Main.Visible = menuVisible
+end)
+
+-- =============================================
+-- =============== AUTO FISH LOGIC =============
+-- =============================================
+
+local FishCounterLabel = Instance.new("TextLabel")
+FishCounterLabel.Size = UDim2.new(0, 350, 0, 45)
+FishCounterLabel.Position = UDim2.new(0, 30, 0, 20)
+FishCounterLabel.BackgroundColor3 = Color3.fromRGB(40,40,55)
+FishCounterLabel.Text = "🎣 FISH: 0"
+FishCounterLabel.TextSize = 20
+FishCounterLabel.Font = Enum.Font.GothamSemibold
+FishCounterLabel.TextColor3 = Color3.new(1,1,1)
+FishCounterLabel.BackgroundTransparency = 0.5
+FishCounterLabel.Parent = FishFrame
+Instance.new("UICorner", FishCounterLabel).CornerRadius = UDim.new(0,10)
+
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(0, 350, 0, 40)
+StatusLabel.Position = UDim2.new(0, 30, 0, 80)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "Status: Idle"
+StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 200)
+StatusLabel.TextSize = 18
+StatusLabel.Font = Enum.Font.GothamSemibold
+StatusLabel.Parent = FishFrame
+
+-- Variables
+local autoEggEnabled = false
+local autoFishEnabled = false
+
+local findBestEgg
+local getEggPosition
+
 local map = workspace:WaitForChild("Map")
 local waterFolder = map:WaitForChild("Miscs"):WaitForChild("WaterBlocks")
 local treeFolder = map:WaitForChild("trees")
 local bossPortal = workspace["Boss Portal"]
 local house = workspace.Map.house
 
-local function applyNoPath(folder, labelName)
+local function applyNoPath(folder, label)
     for _, part in pairs(folder:GetDescendants()) do
-        if part:IsA("BasePart") then
-            if not part:FindFirstChild("NoPath") then
-                local modifier = Instance.new("PathfindingModifier")
-                modifier.Name = "NoPath"
-                modifier.Parent = part
-
-                modifier.PassThrough = false
-                modifier.Label = labelName
-            end
+        if part:IsA("BasePart") and not part:FindFirstChild("NoPath") then
+            local mod = Instance.new("PathfindingModifier")
+            mod.Name = "NoPath"
+            mod.Label = label
+            mod.PassThrough = false
+            mod.Parent = part
         end
     end
 end
@@ -456,116 +265,607 @@ applyNoPath(waterFolder, "Water")
 applyNoPath(treeFolder, "Tree")
 applyNoPath(bossPortal, "bossPortal")
 applyNoPath(house, "House")
+-----------------------------
 
-local currentTargetEgg = nil
+local fishCount = 0
+local sellLimit = 10
+local selling = false
 
+local FISH_POS = Vector3.new(62.35, 100, -299)
+local SHOP_POS = Vector3.new(98, 107.5, -296.17)
 
-local function goToBestEgg()
-    if not enabled then return end
+local obstacleConnection = nil
+local lastJump = 0
+local JUMP_COOLDOWN = 0.35
+local raycastParams = RaycastParams.new()
+raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+raycastParams.IgnoreWater = true
 
-    
-    currentTargetEgg = findBestEgg()
+-- Obstacle Jump (dùng chung với Egg)
+local function startObstacleJump()
+    if obstacleConnection then return end
+    obstacleConnection = RunService.Heartbeat:Connect(function()
+        if not (autoFishEnabled or autoEggEnabled) then return end
 
-    local bestEgg = currentTargetEgg
-    if not bestEgg then return end
+		-- ❗ FIX: nếu gần trứng thì không nhảy
+		if autoEggEnabled then
+    	local egg = findBestEgg()
+    		if egg then
+        		local pos = getEggPosition(egg)
+        		if pos and (hrp.Position - pos).Magnitude <= 4 then
+            		return -- đứng yên, không jump
+        		end
+    		end
+		end
+        
+        local character = player.Character
+        if not character then return end
+        local humanoid = character:FindFirstChild("Humanoid")
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        if not humanoid or not hrp then return end
 
-    local eggPos = getEggPosition(bestEgg)
-if not eggPos then return end
+        raycastParams.FilterDescendantsInstances = {character}
+        local basePos = hrp.Position
+        local forward = hrp.CFrame.LookVector * 6
+        local heights = {Vector3.new(0,-1.85,0), Vector3.new(0,0,0), Vector3.new(0,2,0)}
 
-local dist = (hrp.Position - eggPos).Magnitude
-
--- Nếu gần thì nhặt
-if dist <= 10 then
-    triggerProximityPrompt(bestEgg)
-    currentTargetEgg = nil
-
-    humanoid:MoveTo(hrp.Position)
-    task.wait(0.8)
-    return
+        for _, offset in ipairs(heights) do
+            local result = workspace:Raycast(basePos + offset, forward, raycastParams)
+            if result and result.Instance.CanCollide then
+                local highCheck = workspace:Raycast(basePos + Vector3.new(0,3.5,0), forward, raycastParams)
+                if highCheck and highCheck.Instance == result.Instance then
+                    hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(20), 0)
+                    return
+                end
+                if tick() - lastJump > JUMP_COOLDOWN then
+                    lastJump = tick()
+                    humanoid.JumpPower = 58
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    return
+                end
+            end
+        end
+    end)
 end
 
-    -- Pathfinding giữ nguyên
-    local path = PathfindingService:CreatePath({
-        AgentRadius = 3,
-        AgentHeight = 6,
-        AgentCanJump = true,
-        WaypointSpacing = 3,
+local function stopObstacleJump()
+    if obstacleConnection then
+        obstacleConnection:Disconnect()
+        obstacleConnection = nil
+    end
+end
 
-        Costs = {
-            Water = math.huge,
-            Tree = math.huge,
-            bossPortal = 9999999999,
-            House = 999999999
-        }
-    })
+local function smartMoveTo(targetPos)
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    local hrp = character:WaitForChild("HumanoidRootPart")
 
-    local success = pcall(function()
-    path:ComputeAsync(hrp.Position, eggPos + Vector3.new(0, 3, 0))
+    startObstacleJump()
+
+    local lastPos = hrp.Position
+    local stuckTime = 0
+
+    local function createPath()
+        return PathfindingService:CreatePath({
+            AgentRadius = 3,
+            AgentHeight = 6,
+            AgentCanJump = true,
+            WaypointSpacing = 3,
+            Costs = {
+                Water = math.huge,
+                Tree = math.huge,
+                bossPortal = 999999999,
+                House = 999999999
+            }
+        })
+    end
+
+    local path = createPath()
+
+    local function compute()
+        return pcall(function()
+            path:ComputeAsync(hrp.Position, targetPos)
+        end)
+    end
+
+    local success = compute()
+
+    -- 🔁 retry nếu fail
+    if not success or path.Status ~= Enum.PathStatus.Success then
+        task.wait(0.3)
+        path = createPath()
+        success = compute()
+    end
+
+    if success and path.Status == Enum.PathStatus.Success then
+        for _, wp in ipairs(path:GetWaypoints()) do
+            if not (autoFishEnabled or autoEggEnabled) then break end
+
+            humanoid:MoveTo(wp.Position)
+
+            local reached = humanoid.MoveToFinished:Wait(2.5)
+
+            -- ❌ nếu không tới → xử lý kẹt
+            if not reached then
+                -- kiểm tra stuck
+                if (hrp.Position - lastPos).Magnitude < 1 then
+                    stuckTime += 1
+                else
+                    stuckTime = 0
+                end
+
+                lastPos = hrp.Position
+
+                -- 🧠 xử lý khi bị kẹt
+                if stuckTime >= 2 then
+                    humanoid.Jump = true
+                    hrp.CFrame = hrp.CFrame * CFrame.new(0, 3, 0) -- nhấc lên nhẹ
+                    task.wait(0.2)
+                end
+
+                -- 🔁 recompute path
+                path = createPath()
+                compute()
+                break
+            end
+        end
+    else
+        -- 🚀 fallback thông minh hơn MoveTo
+        hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+    end
+end
+
+-- Find Fishing UI elements
+local movingBar, targetBar, startfishing, exitfishing, status, shopfish = nil, nil, nil, nil, nil, nil
+
+-- Tìm UI câu cá
+for _, v in pairs(gui:GetChildren()) do
+    if v.Name == "ImageLabel" then
+        local hasAspect, hasStroke = false, false
+        for _, k in pairs(v:GetChildren()) do
+            if k.Name == "UIAspectRatioConstraint" then hasAspect = true
+            elseif k.Name == "UIStroke" then hasStroke = true end
+        end
+        if hasAspect and hasStroke then
+            movingBar = v:GetChildren()[5]:GetChildren()[3].ImageLabel:GetChildren()[3]
+            targetBar = v:GetChildren()[5]:GetChildren()[3].ImageLabel.ImageLabel
+            exitfishing = v:GetChildren()[7].ImageButton
+            startfishing = v:GetChildren()[4].ImageLabel.ImageButton
+            status = v
+        end
+    end
+end
+
+-- Tìm Shop UI
+for _, vv in pairs(gui:GetChildren()) do
+    if vv:IsA("Frame") then
+        local frameCount, imageButtonCount, imageLabelCount, textLabelCount, hasStroke = 0,0,0,0,false
+        for _, kk in pairs(vv:GetChildren()) do
+            if kk.Name == "Frame" then frameCount += 1
+            elseif kk.Name == "ImageButton" then imageButtonCount += 1
+            elseif kk.Name == "ImageLabel" then imageLabelCount += 1
+            elseif kk.Name == "TextLabel" then textLabelCount += 1
+            elseif kk.Name == "UIStroke" then hasStroke = true end
+        end
+        if hasStroke and frameCount == 3 and imageButtonCount == 2 and imageLabelCount == 1 and textLabelCount == 1 then
+            shopfish = vv
+        end
+    end
+end
+
+local function clickScale(px, py)
+    local viewport = workspace.CurrentCamera.ViewportSize
+    local x = viewport.X * (px / 1920)
+    local y = viewport.Y * (py / 1080)
+    vim:SendMouseButtonEvent(x, y, 0, true, game, 0)
+    task.wait(0.08)
+    vim:SendMouseButtonEvent(x, y, 0, false, game, 0)
+end
+
+local function openShop()
+    if selling then return end
+    selling = true
+    StatusLabel.Text = "Status: Going to shop..."
+    
+    smartMoveTo(SHOP_POS)
+    task.wait(1.2)
+    
+    StatusLabel.Text = "Status: Selling..."
+    if shopfish then shopfish.Visible = true end
+    task.wait(1.5)
+    
+    for i = 1, fishCount do
+        clickScale(833, 430)
+        task.wait(0.25)
+        clickScale(676, 809)
+        task.wait(0.25)
+        clickScale(825, 630)
+        task.wait(0.22)
+    end
+    
+    fishCount = 0
+    FishCounterLabel.Text = "🎣 FISH: 0"
+    if shopfish then shopfish.Visible = false end
+    
+    StatusLabel.Text = "Status: Returning to spot..."
+    smartMoveTo(FISH_POS)
+    selling = false
+end
+
+local fishBiting = false
+local lastFinishClick = 0
+local lastClickTime = 0
+
+local function checkFish()
+    if not status then return end
+    local size = status.Size
+    if math.abs(size.X.Scale - 0.14) < 0.02 and size.X.Offset == 230 then
+        fishBiting = true
+    elseif math.abs(size.X.Scale - 0.185) < 0.02 and size.X.Offset == 250 then
+        fishBiting = false
+    else
+        fishBiting = false
+    end
+end
+
+-- Main Fishing Loop
+task.spawn(function()
+    while true do
+        task.wait(0.01)
+        if not autoFishEnabled or selling then continue end
+
+        if fishCount >= sellLimit then
+            openShop()
+            continue
+        end
+
+        -- Auto Cast
+        if startfishing and startfishing.Visible and status and math.abs(status.BackgroundTransparency - 0.4) < 0.02 then
+            StatusLabel.Text = "Status: Casting..."
+            task.wait(0.4)
+            clickScale(852, 834)
+            task.wait(0.25)
+        end
+
+        checkFish()
+
+        -- Auto Finish
+        if not fishBiting and status and math.abs(status.Size.X.Scale - 0.185) < 0.02 then
+            StatusLabel.Text = "Status: Caught!"
+            task.wait(1.7)
+            if tick() - lastFinishClick > 1 then
+                lastFinishClick = tick()
+                clickScale(1113, 342)
+                fishCount += 1
+                FishCounterLabel.Text = "🎣 FISH: " .. fishCount
+            end
+        end
+
+        -- Auto Click when fish biting
+        if fishBiting and movingBar and targetBar then
+            local xScale = movingBar.Size.X.Scale
+            local center = targetBar.Position.X.Scale + targetBar.Size.X.Scale / 2
+            local diff = center - xScale
+
+            if diff > 0.008 then
+                if tick() - lastClickTime > 0.018 then
+                    lastClickTime = tick()
+                    local absPos = movingBar.Parent.AbsolutePosition
+                    local absSize = movingBar.Parent.AbsoluteSize
+                    local x = absPos.X + absSize.X / 2
+                    local y = absPos.Y + absSize.Y / 2
+                    vim:SendMouseButtonEvent(x, y, 0, true, game, 0)
+                    task.wait(0.01)
+                    vim:SendMouseButtonEvent(x, y, 0, false, game, 0)
+                end
+            end
+            StatusLabel.Text = "Status: Fishing..."
+        end
+    end
 end)
 
-if success and path.Status == Enum.PathStatus.Success then
-    for _, wp in ipairs(path:GetWaypoints()) do
-        if not enabled then break end
-        humanoid:MoveTo(wp.Position)
-        if not humanoid.MoveToFinished:Wait(2.5) then break end
+-- ================== TOGGLES ==================
+local autoFishToggle = createToggle(FishFrame, "AUTO FISH", 140, function(state)
+    autoFishEnabled = state
+    
+    if state then
+        -- ❗ tắt egg khi bật fish
+        autoEggEnabled = false
+        
+        startObstacleJump()
+        StatusLabel.Text = "Status: Starting..."
+		workspace.Map.Miscs.FishShop.NPC.ProximityPrompt.Enabled = false
+        smartMoveTo(FISH_POS)
+        print("✅ AUTO FISH: BẬT")
+    else
+        stopObstacleJump()
+        StatusLabel.Text = "Status: Stopped"
+		workspace.Map.Miscs.FishShop.NPC.ProximityPrompt.Enabled = true
+        print("❌ AUTO FISH: TẮT")
     end
-else
-    humanoid:MoveTo(eggPos + Vector3.new(0, 4, 0))
+end)
+
+local sellLimitLabel = Instance.new("TextLabel")
+sellLimitLabel.Size = UDim2.new(0, 200, 0, 40)
+sellLimitLabel.Position = UDim2.new(0, 30, 0, 200)
+sellLimitLabel.BackgroundTransparency = 1
+sellLimitLabel.Text = "Bán khi có: " .. sellLimit .. " cá"
+sellLimitLabel.TextColor3 = Color3.new(1,1,1)
+sellLimitLabel.TextSize = 18
+sellLimitLabel.Font = Enum.Font.GothamSemibold
+sellLimitLabel.Parent = FishFrame
+
+-- Sell limit buttons
+local plusBtn = Instance.new("TextButton")
+plusBtn.Size = UDim2.new(0, 60, 0, 40)
+plusBtn.Position = UDim2.new(0, 250, 0, 200)
+plusBtn.BackgroundColor3 = Color3.fromRGB(40,40,55)
+plusBtn.Text = "+"
+plusBtn.TextSize = 22
+plusBtn.Font = Enum.Font.GothamBold
+plusBtn.TextColor3 = Color3.new(1,1,1)
+plusBtn.Parent = FishFrame
+Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(0,8)
+
+plusBtn.MouseButton1Click:Connect(function()
+    sellLimit += 1
+    sellLimitLabel.Text = "Bán khi có: " .. sellLimit .. " cá"
+end)
+
+local minusBtn = Instance.new("TextButton")
+minusBtn.Size = UDim2.new(0, 60, 0, 40)
+minusBtn.Position = UDim2.new(0, 320, 0, 200)
+minusBtn.BackgroundColor3 = Color3.fromRGB(40,40,55)
+minusBtn.Text = "-"
+minusBtn.TextSize = 22
+minusBtn.Font = Enum.Font.GothamBold
+minusBtn.TextColor3 = Color3.new(1,1,1)
+minusBtn.Parent = FishFrame
+Instance.new("UICorner", minusBtn).CornerRadius = UDim.new(0,8)
+
+minusBtn.MouseButton1Click:Connect(function()
+    if sellLimit > 1 then
+        sellLimit -= 1
+        sellLimitLabel.Text = "Bán khi có: " .. sellLimit .. " cá"
+    end
+end)
+
+-- ================== EGG TOGGLE (giữ nguyên) ==================
+
+-- =============================================
+-- =============== EGG HUNTER LOGIC ===============
+-- =============================================
+
+local eggCounterLabel = Instance.new("TextButton")
+eggCounterLabel.Size = UDim2.new(0, 350, 0, 45)
+eggCounterLabel.Position = UDim2.new(0, 30, 0, 20) -- nằm trên cùng
+eggCounterLabel.BackgroundColor3 = Color3.fromRGB(40,40,55)
+eggCounterLabel.Text = "🥚 EGGS: 0"
+eggCounterLabel.TextSize = 20
+eggCounterLabel.Font = Enum.Font.GothamSemibold
+eggCounterLabel.TextColor3 = Color3.new(1,1,1)
+eggCounterLabel.BackgroundTransparency = 0.5
+eggCounterLabel.AutoButtonColor = false
+eggCounterLabel.Parent = EggFrame
+
+Instance.new("UICorner", eggCounterLabel).CornerRadius = UDim.new(0,10)
+
+--------------------------------------------------------
+local character = player.Character or player.CharacterAdded:Wait()
+
+local espEnabled = false
+
+-- ==================== ESP ====================
+local function isEgg(v)
+    if not v then return false end
+    return (v:IsA("BasePart") or v:IsA("Model")) and string.find(string.lower(v.Name), "egg")
 end
+
+getEggPosition = function(egg)
+    if egg:IsA("MeshPart") then return egg.Position end
+    if egg:IsA("Model") then
+        local root = egg:FindFirstChild("HumanoidRootPart") or egg:FindFirstChildWhichIsA("BasePart")
+        return root and root.Position or egg:GetPivot().Position
+    end
+    return nil
+end
+
+local forbiddenZones = {
+    {minX = -150, maxX = 20,   minZ = -170, maxZ = -70},
+    {minX = 30,   maxX = 239,  minZ = -700, maxZ = -580},
+    {minX = 514,  maxX = 653,  minZ = -270, maxZ = -114},
+    {minX = 15,   maxX = 65,   minZ = -459, maxZ = -409}
+}
+
+local function isInForbiddenZone(pos)
+    for _, zone in ipairs(forbiddenZones) do
+        if pos.X >= zone.minX and pos.X <= zone.maxX and pos.Z >= zone.minZ and pos.Z <= zone.maxZ then
+            return true
+        end
+    end
+    return false
+end
+
+local function createESP(egg)
+    if egg:FindFirstChild("EggHighlight") then return end
+
+    local pos = getEggPosition(egg)
+    local nameLower = string.lower(egg.Name)
+    local isPointEgg = string.find(nameLower, "point_egg")
+    local isPotionEgg = string.find(nameLower, "potion")
+    local inForbidden = isPointEgg and isInForbiddenZone(pos)
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "EggHighlight"
+    if inForbidden then
+        highlight.FillColor = Color3.fromRGB(255, 50, 50)
+        highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+    elseif isPotionEgg then
+        highlight.FillColor = Color3.fromRGB(0, 255, 200)
+        highlight.OutlineColor = Color3.fromRGB(0, 255, 150)
+    elseif isPointEgg then
+        highlight.FillColor = Color3.fromRGB(255, 255, 0)
+        highlight.OutlineColor = Color3.fromRGB(255, 200, 0)
+    else
+        highlight.FillColor = Color3.fromRGB(180, 0, 255)
+        highlight.OutlineColor = Color3.fromRGB(255, 0, 255)
+    end
+    highlight.FillTransparency = 0.35
+    highlight.OutlineTransparency = 0
+    highlight.Adornee = egg:IsA("Model") and (egg.PrimaryPart or egg:FindFirstChildWhichIsA("BasePart")) or egg
+    highlight.Parent = egg
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "EggESPBillboard"
+    billboard.Size = UDim2.new(0, 140, 0, 45)
+    billboard.AlwaysOnTop = true
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.Parent = egg
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1,0,1,0)
+    label.BackgroundTransparency = 1
+    label.TextStrokeTransparency = 0
+    label.TextScaled = true
+    label.Font = Enum.Font.GothamBold
+
+    if isPointEgg then
+        local num = string.match(egg.Name, "(%d+)") or "?"
+        label.Text = inForbidden and "❌ Egg "..num or "🥚 Egg "..num
+        label.TextColor3 = inForbidden and Color3.fromRGB(255,80,80) or Color3.fromRGB(255,255,0)
+    elseif isPotionEgg then
+        label.Text = "🧪 Potion Egg"
+        label.TextColor3 = Color3.fromRGB(0,255,200)
+    else
+        label.Text = "🌈 Special Egg"
+        label.TextColor3 = Color3.fromRGB(200,100,255)
+    end
+    label.Parent = billboard
+end
+
+local function clearESP()
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:FindFirstChild("EggHighlight") then v.EggHighlight:Destroy() end
+        if v:FindFirstChild("EggESPBillboard") then v.EggESPBillboard:Destroy() end
+    end
+end
+
+local function scanEggs()
+    if not espEnabled then return end
+    for _, v in pairs(workspace:GetChildren()) do
+        if isEgg(v) then createESP(v) end
+    end
 end
 
 task.spawn(function()
     while true do
-        if enabled and character and hrp and humanoid then
+        if espEnabled then scanEggs() end
+        task.wait(2)
+    end
+end)
+-- ================== PATHFINDING & COLLECT ==================
+findBestEgg = function()
+    local closest, dist = nil, math.huge
+    for _, v in pairs(workspace:GetChildren()) do
+        if isEgg(v) then
+            local pos = getEggPosition(v)
+            if pos and not isInForbiddenZone(pos) then
+                local d = (hrp.Position - pos).Magnitude
+                if d < dist then
+                    dist = d
+                    closest = v
+                end
+            end
+        end
+    end
+    return closest
+end
+local  eggCollected = 0
+local function triggerProximityPrompt(egg)
+    local prompt = egg:FindFirstChildOfClass("ProximityPrompt") or egg:FindFirstChild("ProximityPrompt", true)
+    if prompt then
+        prompt:InputHoldBegin()
+        task.wait(0.12)
+        prompt:InputHoldEnd()
+
+        -- 🥚 TĂNG COUNT
+        eggCollected += 1
+        eggCounterLabel.Text = "🥚 Eggs Collected: "..eggCollected
+    end
+end
+local function goToBestEgg()
+    if not autoEggEnabled then return end
+    local egg = findBestEgg()
+    if not egg then return end
+
+    local pos = getEggPosition(egg)
+    if (hrp.Position - pos).Magnitude <= 4 then
+        triggerProximityPrompt(egg)
+        task.wait(0.8)
+        return
+    end
+
+    local path = PathfindingService:CreatePath({
+        AgentRadius = 3, AgentHeight = 6, AgentCanJump = true,
+        WaypointSpacing = 3,
+        Costs = { Water = math.huge, Tree = math.huge, bossPortal = 999999999, House = 999999999 }
+    })
+
+    local success = pcall(function()
+        path:ComputeAsync(hrp.Position, pos + Vector3.new(0,3,0))
+    end)
+
+    if success and path.Status == Enum.PathStatus.Success then
+        for _, wp in ipairs(path:GetWaypoints()) do
+            if not autoEggEnabled then break end
+            humanoid:MoveTo(wp.Position)
+            if not humanoid.MoveToFinished:Wait(2.5) then break end
+        end
+    else
+        humanoid:MoveTo(pos + Vector3.new(0,4,0))
+    end
+end
+
+task.spawn(function()
+    while true do
+        if autoEggEnabled then
             goToBestEgg()
         end
         task.wait(0.7)
     end
 end)
 
--- ==================== TOGGLE ====================
-local function toggleScript()
-    enabled = not enabled
-    if enabled then
-        statusLabel.Text = "Trạng thái: BẬT"
-        statusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
-        toggleButton.Text = "BẤM ĐỂ TẮT"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-        startObstacleJump()
-        print("✅ AUTO EGG")
-    else
-        statusLabel.Text = "Trạng thái: TẮT"
-        statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-        toggleButton.Text = "BẤM ĐỂ BẬT (N)"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-        stopObstacleJump()
-        print("❌ AUTO EGG ĐÃ TẮT")
-    end
-end
-
-toggleButton.MouseButton1Click:Connect(toggleScript)
-
-UserInputService.InputBegan:Connect(function(input, gp)
-    if gp then return end
-    if input.KeyCode == Enum.KeyCode.N then
-        toggleScript()
-    end
-end)
-
--- ==================== AUTO CLICK MỖI 5 PHÚT ====================
-local VirtualUser = game:GetService("VirtualUser")
-
+-- Anti-AFK
 task.spawn(function()
     while true do
-        task.wait(300) -- 300 giây = 5 phút
+        task.wait(300)
 		humanoid.WalkSpeed = 20
-		
-        
-        -- Giả lập click chuột (tránh AFK / tự nhấn màn hình)
-        VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        VirtualUser:Button2Down(Vector2.new(), workspace.CurrentCamera.CFrame)
         task.wait(0.1)
-        VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-
-        print("🖱️ Đã tự động click sau 5 phút")
+        VirtualUser:Button2Up(Vector2.new(), workspace.CurrentCamera.CFrame)
     end
 end)
+
+local autoEggToggle = createToggle(EggFrame, "AUTO EGG HUNTER", 80, function(state)
+    autoEggEnabled = state
+    
+    if state then
+        -- ❗ tắt fish khi bật egg
+        autoFishEnabled = false
+        
+        startObstacleJump()
+        print("✅ AUTO EGG HUNTER: BẬT")
+    else
+        stopObstacleJump()
+        print("❌ AUTO EGG HUNTER: TẮT")
+    end
+end)
+
+local espToggle = createToggle(EggFrame, "ESP TRỨNG", 140, function(state)
+    espEnabled = state
+    if not espEnabled then clearESP() end
+    print(espEnabled and "🟡 ESP TRỨNG: BẬT" or "⚫ ESP TRỨNG: TẮT")
+end)
+
+
+print("🚀 Multi Farm GUI Loaded - Fish + Egg")
