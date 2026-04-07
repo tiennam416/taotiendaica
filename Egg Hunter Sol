@@ -384,9 +384,6 @@ local function smartMoveTo(targetPos)
 
     startObstacleJump()
 
-    local lastPos = hrp.Position
-    local stuckTime = 0
-
     local function createPath()
         return PathfindingService:CreatePath({
             AgentRadius = 3,
@@ -402,74 +399,84 @@ local function smartMoveTo(targetPos)
         })
     end
 
-    local path = createPath()
-
-    local function compute()
+    local function computePath(path)
         return pcall(function()
             path:ComputeAsync(hrp.Position, targetPos)
         end)
     end
 
-    local success = compute()
+    local path = createPath()
+    local success = computePath(path)
 
-    -- 🔁 retry nếu fail
     if not success or path.Status ~= Enum.PathStatus.Success then
         task.wait(0.3)
         path = createPath()
-        success = compute()
+        success = computePath(path)
     end
 
-    if success and path.Status == Enum.PathStatus.Success then
-		if showPathEnabled  and drawPath then
-    		drawPath(path:GetWaypoints())
-		end
-        for _, wp in ipairs(path:GetWaypoints()) do
-            if not (autoFishEnabled or autoEggEnabled) then break end
+    if not success or path.Status ~= Enum.PathStatus.Success then
+        -- 🚀 fallback teleport nhẹ
+        hrp.CFrame = CFrame.new(targetPos + Vector3.new(0,3,0))
+        return
+    end
 
-            humanoid:MoveTo(wp.Position)
+    local lastPos = hrp.Position
+    local stuckTime = 0
 
-            local reached = humanoid.MoveToFinished:Wait(2.5)
+    for _, wp in ipairs(path:GetWaypoints()) do
+        if not (autoFishEnabled or autoEggEnabled) then break end
 
-            -- ❌ nếu không tới → xử lý kẹt
-            if not reached then
-                -- kiểm tra stuck
-                if (hrp.Position - lastPos).Magnitude < 1 then
-                    stuckTime += 1
-                else
-                    stuckTime = 0
-                end
+        local startTime = tick()
+        humanoid:MoveTo(wp.Position)
 
-                lastPos = hrp.Position               
-				if stuckTime >= 2 then
-    				humanoid.Jump = true
+        local reached = humanoid.MoveToFinished:Wait(2)
 
-    				-- 🔙 tính vị trí phía sau
-    				local backward = hrp.Position - hrp.CFrame.LookVector * 6
+        -- ❗ Detect stuck luôn, kể cả khi reached = true
+        local moved = (hrp.Position - lastPos).Magnitude
 
-    				-- 🚶 dùng MoveTo thay vì teleport
-    				humanoid:MoveTo(backward)
-
-    				humanoid.MoveToFinished:Wait(1.5)
-
-    				stuckTime = 0
-				end
-
-                -- 🔁 recompute path
-                path = createPath()
-                compute()
-                break
-            end
+        if moved < 0.5 then
+            stuckTime += 1
+        else
+            stuckTime = 0
         end
-		 if showPathEnabled and clearPath then
-        clearPath()
-    end
 
-    else
-        -- 🚀 fallback thông minh hơn MoveTo
-        hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
-		-- ✅ fallback cũng nên clear
-        if showPathEnabled and clearPath then
-            clearPath()
+        lastPos = hrp.Position
+
+        -- 💥 FIX KẸT
+        if stuckTime >= 2 or not reached or (tick() - startTime > 2) then
+            StatusLabel.Text = "Status: Stuck! Fixing..."
+
+            -- Jump nhẹ
+            if humanoid:GetState() ~= Enum.HumanoidStateType.Freefall then
+                humanoid.Jump = true
+            end
+
+            task.wait(0.1)
+
+            -- Random hướng thoát
+            local randomDir = Vector3.new(
+                math.random(-1,1),
+                0,
+                math.random(-1,1)
+            )
+
+            if randomDir.Magnitude == 0 then
+                randomDir = Vector3.new(1,0,0)
+            end
+
+            randomDir = randomDir.Unit
+
+            local escapePos = hrp.Position + randomDir * 8
+
+            humanoid:MoveTo(escapePos)
+            humanoid.MoveToFinished:Wait(1.2)
+
+            -- Recompute path
+            path = createPath()
+            computePath(path)
+
+            stuckTime = 0
+            continue
         end
     end
 end
