@@ -20,7 +20,6 @@ player.CharacterAdded:Connect(function(char)
     humanoid = char:WaitForChild("Humanoid")
     hrp = char:WaitForChild("HumanoidRootPart")
 end)
-humanoid.WalkSpeed = 19
 -- ================== MAIN GUI ==================
 
 local function autoText(label, min, max)
@@ -378,6 +377,7 @@ end
 local drawPath
 local clearPath
 local showPathEnabled = false
+
 local function smartMoveTo(targetPos)
     local character = player.Character or player.CharacterAdded:Wait()
     local humanoid = character:WaitForChild("Humanoid")
@@ -415,16 +415,27 @@ local function smartMoveTo(targetPos)
         success = computePath(path)
     end
 
+    -- ❌ FAIL PATH → clear + teleport
     if not success or path.Status ~= Enum.PathStatus.Success then
-        -- 🚀 fallback teleport nhẹ
-        hrp.CFrame = CFrame.new(targetPos + Vector3.new(0,3,0))
-        return
+    clearPath()
+    StatusLabel.Text = "Status: Path failed! Retrying..."
+    task.wait(0.5)
+    return -- ❗ không teleport nữa
+	end
+
+    -- ✅ LẤY WAYPOINT + VẼ PATH
+    local waypoints = path:GetWaypoints()
+
+    if showPathEnabled then
+        drawPath(waypoints)
+    else
+        clearPath()
     end
 
     local lastPos = hrp.Position
     local stuckTime = 0
 
-    for _, wp in ipairs(path:GetWaypoints()) do
+    for _, wp in ipairs(waypoints) do
         if not (autoFishEnabled or autoEggEnabled) then break end
 
         local startTime = tick()
@@ -432,7 +443,6 @@ local function smartMoveTo(targetPos)
 
         local reached = humanoid.MoveToFinished:Wait(2)
 
-        -- ❗ Detect stuck luôn, kể cả khi reached = true
         local moved = (hrp.Position - lastPos).Magnitude
 
         if moved < 0.5 then
@@ -447,14 +457,12 @@ local function smartMoveTo(targetPos)
         if stuckTime >= 2 or not reached or (tick() - startTime > 2) then
             StatusLabel.Text = "Status: Stuck! Fixing..."
 
-            -- Jump nhẹ
             if humanoid:GetState() ~= Enum.HumanoidStateType.Freefall then
                 humanoid.Jump = true
             end
 
             task.wait(0.1)
 
-            -- Random hướng thoát
             local randomDir = Vector3.new(
                 math.random(-1,1),
                 0,
@@ -466,22 +474,28 @@ local function smartMoveTo(targetPos)
             end
 
             randomDir = randomDir.Unit
-
             local escapePos = hrp.Position + randomDir * 8
 
             humanoid:MoveTo(escapePos)
             humanoid.MoveToFinished:Wait(1.2)
 
-            -- Recompute path
+            -- 🔄 REPATH + VẼ LẠI PATH
             path = createPath()
             computePath(path)
+
+            local newWaypoints = path:GetWaypoints()
+
+            if showPathEnabled then
+                drawPath(newWaypoints)
+            else
+                clearPath()
+            end
 
             stuckTime = 0
             continue
         end
     end
 end
-
 -- Find Fishing UI elements
 local movingBar, targetBar, startfishing, exitfishing, status, shopfish = nil, nil, nil, nil, nil, nil
 
@@ -950,10 +964,39 @@ local pathduongdi = createToggle(MiscFrame, "HIỆN ĐƯỜNG ĐI", 0.0185, func
     end
 end)
 
+-- ================= SPEED SLIDER =================
+-- ================= SPEED SLIDER FIX =================
+local boostEnabled = false
+local speedValue = 20
+local minSpeed = 16
+
+
+createToggle(MiscFrame, "USE BOOST SPEED", 0.4, function(state)
+    boostEnabled = state
+
+    if humanoid then
+        if boostEnabled then
+            humanoid.WalkSpeed = speedValue
+        else
+            humanoid.WalkSpeed = normalSpeed
+        end
+    end
+end,true)
+
+-- ================= ANTI RESET (NHẸ) =================
+task.spawn(function()
+    while true do
+        if boostEnabled then
+            task.wait(60)
+			humanoid.WalkSpeed = speedValue
+        end
+    end
+end)
+
 -- ----------------------Anti-AFK----------------------------------
 local antiAfkEnabled = false
 
-createToggle(MiscFrame, "ANTI AFK", 0.25, function(state)
+createToggle(MiscFrame, "ANTI AFK", 0.2, function(state)
     antiAfkEnabled = state
 end, true)
 
@@ -961,8 +1004,7 @@ task.spawn(function()
     while true do
         task.wait(300)
 
-        if antiAfkEnabled then
-            humanoid.WalkSpeed = 19
+        if antiAfkEnabled then            
             VirtualUser:Button2Down(Vector2.new(), workspace.CurrentCamera.CFrame)
             task.wait(0.1)
             VirtualUser:Button2Up(Vector2.new(), workspace.CurrentCamera.CFrame)
