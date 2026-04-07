@@ -167,6 +167,7 @@ end
 -- ================== CREATE TABS ==================
 local FishFrame = createTab("FISH", "🎣")
 local EggFrame  = createTab("AUTO EGG", "🥚")
+local MiscFrame  = createTab("MISC", "⚙️")
 
 -- Default tab
 tabs[1].frame.Visible = true
@@ -174,36 +175,37 @@ tabs[1].button.BackgroundColor3 = Color3.fromRGB(60,60,90)
 tabs[1].stroke.Transparency = 0
 
 -- ================== TOGGLE FUNCTION ==================
-local function createToggle(parent, text, posY, callback)
+local function createToggle(parent, text, posY, callback, default)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0.8, 0, 0.1, 0)
-	btn.Position = UDim2.new(0.1, 0, 0, posY)
-	btn.TextScaled = false
-	autoText(btn, 14, 20)
-    btn.BackgroundColor3 = Color3.fromRGB(40,40,55)
-    btn.Text = text..": OFF"    
+    btn.Position = UDim2.new(0.1, 0, 0, posY)
+    btn.TextScaled = false
+    autoText(btn, 14, 20)
+
+    local enabled = default or false
+
+    btn.BackgroundColor3 = enabled and Color3.fromRGB(0,200,120) or Color3.fromRGB(40,40,55)
+    btn.Text = text .. ": " .. (enabled and "ON" or "OFF")
+
     btn.Font = Enum.Font.GothamSemibold
     btn.TextColor3 = Color3.new(1,1,1)
     btn.BackgroundTransparency = 0.5
     btn.Parent = parent
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0,10)
 
-    local enabled = false
     btn.MouseButton1Click:Connect(function()
         enabled = not enabled
-        if enabled then
-            btn.Text = text..": ON"
-            btn.BackgroundColor3 = Color3.fromRGB(0,200,120)
-        else
-            btn.Text = text..": OFF"
-            btn.BackgroundColor3 = Color3.fromRGB(40,40,55)
-        end
+        btn.Text = text .. ": " .. (enabled and "ON" or "OFF")
+        btn.BackgroundColor3 = enabled and Color3.fromRGB(0,200,120) or Color3.fromRGB(40,40,55)
+
         if callback then callback(enabled) end
     end)
+
+    -- gọi callback ngay từ đầu
+    if callback then callback(enabled) end
+
     return btn
 end
-
-
 -- ================== FLOAT BUTTON ==================
 local ToggleButton = Instance.new("ImageButton")
 ToggleButton.Size = UDim2.new(0.03, 0, 0.06, 0)
@@ -327,6 +329,12 @@ local function startObstacleJump()
         		end
     		end
 		end
+
+		if autoFishEnabled then
+    	    if (hrp.Position - SHOP_POS).Magnitude <= 4 then
+            	return -- tại sao vẫn nhảy
+            end
+		end
         
         local character = player.Character
         if not character then return end
@@ -365,6 +373,10 @@ local function stopObstacleJump()
     end
 end
 
+
+local drawPath
+local clearPath
+local showPathEnabled = false
 local function smartMoveTo(targetPos)
     local character = player.Character or player.CharacterAdded:Wait()
     local humanoid = character:WaitForChild("Humanoid")
@@ -408,6 +420,9 @@ local function smartMoveTo(targetPos)
     end
 
     if success and path.Status == Enum.PathStatus.Success then
+		if showPathEnabled  and drawPath then
+    		drawPath(path:GetWaypoints())
+		end
         for _, wp in ipairs(path:GetWaypoints()) do
             if not (autoFishEnabled or autoEggEnabled) then break end
 
@@ -424,14 +439,20 @@ local function smartMoveTo(targetPos)
                     stuckTime = 0
                 end
 
-                lastPos = hrp.Position
+                lastPos = hrp.Position               
+				if stuckTime >= 2 then
+    				humanoid.Jump = true
 
-                -- 🧠 xử lý khi bị kẹt
-                if stuckTime >= 2 then
-                    humanoid.Jump = true
-                    hrp.CFrame = hrp.CFrame * CFrame.new(0, 3, 0) -- nhấc lên nhẹ
-                    task.wait(0.2)
-                end
+    				-- 🔙 tính vị trí phía sau
+    				local backward = hrp.Position - hrp.CFrame.LookVector * 6
+
+    				-- 🚶 dùng MoveTo thay vì teleport
+    				humanoid:MoveTo(backward)
+
+    				humanoid.MoveToFinished:Wait(1.5)
+
+    				stuckTime = 0
+				end
 
                 -- 🔁 recompute path
                 path = createPath()
@@ -439,9 +460,17 @@ local function smartMoveTo(targetPos)
                 break
             end
         end
+		 if showPathEnabled and clearPath then
+        clearPath()
+    end
+
     else
         -- 🚀 fallback thông minh hơn MoveTo
         hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+		-- ✅ fallback cũng nên clear
+        if showPathEnabled and clearPath then
+            clearPath()
+        end
     end
 end
 
@@ -465,6 +494,8 @@ for _, v in pairs(gui:GetChildren()) do
         end
     end
 end
+exitfishing.Size = UDim2.new(0.3, 0, 0.3, 0)
+startfishing.Size = UDim2.new(0.9, 0, 0.9, 8)
 
 -- Tìm Shop UI
 for _, vv in pairs(gui:GetChildren()) do
@@ -827,35 +858,19 @@ local function triggerProximityPrompt(egg)
 end
 local function goToBestEgg()
     if not autoEggEnabled then return end
+    
     local egg = findBestEgg()
     if not egg then return end
 
     local pos = getEggPosition(egg)
+
     if (hrp.Position - pos).Magnitude <= 10 then
         triggerProximityPrompt(egg)
         task.wait(0.8)
         return
     end
 
-    local path = PathfindingService:CreatePath({
-        AgentRadius = 3, AgentHeight = 6, AgentCanJump = true,
-        WaypointSpacing = 3,
-        Costs = { Water = math.huge, Tree = math.huge, bossPortal = 999999999, House = 999999999 }
-    })
-
-    local success = pcall(function()
-        path:ComputeAsync(hrp.Position, pos + Vector3.new(0,3,0))
-    end)
-
-    if success and path.Status == Enum.PathStatus.Success then
-        for _, wp in ipairs(path:GetWaypoints()) do
-            if not autoEggEnabled then break end
-            humanoid:MoveTo(wp.Position)
-            if not humanoid.MoveToFinished:Wait(2.5) then break end
-        end
-    else
-        humanoid:MoveTo(pos + Vector3.new(0,4,0))
-    end
+    smartMoveTo(pos)
 end
 
 task.spawn(function()
@@ -864,17 +879,6 @@ task.spawn(function()
             goToBestEgg()
         end
         task.wait(0.7)
-    end
-end)
-
--- Anti-AFK
-task.spawn(function()
-    while true do
-        task.wait(300)
-		humanoid.WalkSpeed = 19
-        VirtualUser:Button2Down(Vector2.new(), workspace.CurrentCamera.CFrame)
-        task.wait(0.1)
-        VirtualUser:Button2Up(Vector2.new(), workspace.CurrentCamera.CFrame)
     end
 end)
 
@@ -900,4 +904,62 @@ local espToggle = createToggle(EggFrame, "ESP TRỨNG", 140, function(state)
 end)
 
 
+-------------------------MISC--------------------------------------
+-- ================= PATH VISUALIZER =================
+local currentPathParts = {}
+
+function clearPath()
+    for _, p in pairs(currentPathParts) do
+        if p and p.Parent then
+            p:Destroy()
+        end
+    end
+    currentPathParts = {}
+end
+
+function drawPath(waypoints)
+    clearPath()
+
+    for _, wp in ipairs(waypoints) do
+        local part = Instance.new("Part")
+        part.Size = Vector3.new(0.6, 0.6, 0.6)
+        part.Shape = Enum.PartType.Ball
+        part.Material = Enum.Material.Neon
+        part.Color = Color3.fromRGB(0, 255, 200)
+        part.Anchored = true
+        part.CanCollide = false
+        part.Position = wp.Position + Vector3.new(0, 0.5, 0)
+        part.Parent = workspace
+
+        table.insert(currentPathParts, part)
+    end
+end
+
+-- Toggle
+local pathduongdi = createToggle(MiscFrame, "HIỆN ĐƯỜNG ĐI", 20, function(state)
+    showPathEnabled = state
+    if not state then
+        clearPath()
+    end
+end)
+
+-- ----------------------Anti-AFK----------------------------------
+local antiAfkEnabled = false
+
+createToggle(MiscFrame, "ANTI AFK", 80, function(state)
+    antiAfkEnabled = state
+end, true)
+
+task.spawn(function()
+    while true do
+        task.wait(300)
+
+        if antiAfkEnabled then
+            humanoid.WalkSpeed = 19
+            VirtualUser:Button2Down(Vector2.new(), workspace.CurrentCamera.CFrame)
+            task.wait(0.1)
+            VirtualUser:Button2Up(Vector2.new(), workspace.CurrentCamera.CFrame)
+        end
+    end
+end)
 print("🚀 Multi Farm GUI Loaded - Fish + Egg")
