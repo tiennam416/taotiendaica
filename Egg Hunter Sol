@@ -118,7 +118,7 @@ local function createTab(name, icon)
     btn.BackgroundColor3 = Color3.fromRGB(35,35,45)
     btn.Text = icon.." "..name
     
-	btn.Size = UDim2.new(1,0,0.08,0)
+	btn.Size = UDim2.new(1,0,0.1,0)
 	btn.TextScaled = false
 	autoText(btn, 14, 22)
     btn.Font = Enum.Font.GothamSemibold
@@ -177,8 +177,8 @@ tabs[1].stroke.Transparency = 0
 -- ================== TOGGLE FUNCTION ==================
 local function createToggle(parent, text, posY, callback, default)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.8, 0, 0.1, 0)
-    btn.Position = UDim2.new(0.1, 0, 0, posY)
+    btn.Size = UDim2.new(0.8, 0, 0.15, 0)
+    btn.Position = UDim2.new(0.1, 0, posY, 0)
     btn.TextScaled = false
     autoText(btn, 14, 20)
 
@@ -208,8 +208,9 @@ local function createToggle(parent, text, posY, callback, default)
 end
 -- ================== FLOAT BUTTON ==================
 local ToggleButton = Instance.new("ImageButton")
-ToggleButton.Size = UDim2.new(0.03, 0, 0.06, 0)
-ToggleButton.Position = UDim2.new(0, 20, 0.5, -30)
+ToggleButton.Size = UDim2.new(0.03, 20, 0.06, 20)
+ToggleButton.Position = UDim2.new(0.02, 0, 0.5, 0)
+ToggleButton.AnchorPoint = Vector2.new(0, 0.5)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 ToggleButton.BackgroundTransparency = 0.1
 ToggleButton.Image = "rbxassetid://123420848310049" -- 🔥 đổi ID logo nếu muốn
@@ -245,7 +246,7 @@ end)
 -- =============================================
 
 local FishCounterLabel = Instance.new("TextLabel")
-FishCounterLabel.Size = UDim2.new(0.8, 0, 0.1, 0)
+FishCounterLabel.Size = UDim2.new(0.8, 0, 0.15, 0)
 FishCounterLabel.Position = UDim2.new(0.1, 0, 0.05, 0)
 FishCounterLabel.BackgroundColor3 = Color3.fromRGB(40,40,55)
 FishCounterLabel.Text = "🎣 FISH: 0"
@@ -633,7 +634,7 @@ task.spawn(function()
 end)
 
 -- ================== TOGGLES ==================
-local autoFishToggle = createToggle(FishFrame, "AUTO FISH", 140, function(state)
+local autoFishToggle = createToggle(FishFrame, "AUTO FISH", 0.4, function(state)
     autoFishEnabled = state
     
     if state then
@@ -653,9 +654,10 @@ local autoFishToggle = createToggle(FishFrame, "AUTO FISH", 140, function(state)
     end
 end)
 
+-- Label
 local sellLimitLabel = Instance.new("TextLabel")
-sellLimitLabel.Size = UDim2.new(0, 200, 0, 40)
-sellLimitLabel.Position = UDim2.new(0, 30, 0, 200)
+sellLimitLabel.Size = UDim2.new(0.5, 0, 0.1, 0)
+sellLimitLabel.Position = UDim2.new(0.0, 0, 0.61, 0)
 sellLimitLabel.BackgroundTransparency = 1
 sellLimitLabel.Text = "Bán khi có: " .. sellLimit .. " cá"
 sellLimitLabel.TextColor3 = Color3.new(1,1,1)
@@ -664,29 +666,27 @@ autoText(sellLimitLabel, 14, 20)
 sellLimitLabel.Font = Enum.Font.GothamSemibold
 sellLimitLabel.Parent = FishFrame
 
--- Sell limit buttons
+-- Nút +
 local plusBtn = Instance.new("TextButton")
-plusBtn.Size = UDim2.new(0, 60, 0, 40)
-plusBtn.Position = UDim2.new(0, 250, 0, 200)
+plusBtn.Size = UDim2.new(0.15, 0, 0.12, 0)
+plusBtn.Position = UDim2.new(0.55, 0, 0.6, 0)
 plusBtn.BackgroundColor3 = Color3.fromRGB(40,40,55)
 plusBtn.Text = "+"
-plusBtn.TextSize = 22
+plusBtn.TextScaled = false
+autoText(plusBtn, 18, 26)
 plusBtn.Font = Enum.Font.GothamBold
 plusBtn.TextColor3 = Color3.new(1,1,1)
 plusBtn.Parent = FishFrame
 Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(0,8)
 
-plusBtn.MouseButton1Click:Connect(function()
-    sellLimit += 1
-    sellLimitLabel.Text = "Bán khi có: " .. sellLimit .. " cá"
-end)
-
+-- Nút -
 local minusBtn = Instance.new("TextButton")
-minusBtn.Size = UDim2.new(0, 60, 0, 40)
-minusBtn.Position = UDim2.new(0, 320, 0, 200)
+minusBtn.Size = UDim2.new(0.15, 0, 0.12, 0)
+minusBtn.Position = UDim2.new(0.72, 0, 0.6, 0)
 minusBtn.BackgroundColor3 = Color3.fromRGB(40,40,55)
 minusBtn.Text = "-"
-minusBtn.TextSize = 22
+minusBtn.TextScaled = false
+autoText(minusBtn, 18, 26)
 minusBtn.Font = Enum.Font.GothamBold
 minusBtn.TextColor3 = Color3.new(1,1,1)
 minusBtn.Parent = FishFrame
@@ -706,7 +706,7 @@ end)
 -- =============================================
 
 local eggCounterLabel = Instance.new("TextButton")
-eggCounterLabel.Size = UDim2.new(0.8, 0, 0.1, 0)
+eggCounterLabel.Size = UDim2.new(0.8, 0, 0.15, 0)
 eggCounterLabel.Position = UDim2.new(0.1, 0, 0.05, 0)
 eggCounterLabel.BackgroundColor3 = Color3.fromRGB(40,40,55)
 eggCounterLabel.Text = "🥚 EGGS: 0"
@@ -889,7 +889,7 @@ task.spawn(function()
     end
 end)
 
-local autoEggToggle = createToggle(EggFrame, "AUTO EGG HUNTER", 80, function(state)
+local autoEggToggle = createToggle(EggFrame, "AUTO EGG HUNTER", 0.22, function(state)
     autoEggEnabled = state
     
     if state then
@@ -904,7 +904,7 @@ local autoEggToggle = createToggle(EggFrame, "AUTO EGG HUNTER", 80, function(sta
     end
 end)
 
-local espToggle = createToggle(EggFrame, "ESP TRỨNG", 140, function(state)
+local espToggle = createToggle(EggFrame, "ESP TRỨNG", 0.4, function(state)
     espEnabled = state
     if not espEnabled then clearESP() end
     print(espEnabled and "🟡 ESP TRỨNG: BẬT" or "⚫ ESP TRỨNG: TẮT")
@@ -943,7 +943,7 @@ function drawPath(waypoints)
 end
 
 -- Toggle
-local pathduongdi = createToggle(MiscFrame, "HIỆN ĐƯỜNG ĐI", 20, function(state)
+local pathduongdi = createToggle(MiscFrame, "HIỆN ĐƯỜNG ĐI", 0.0185, function(state)
     showPathEnabled = state
     if not state then
         clearPath()
@@ -953,7 +953,7 @@ end)
 -- ----------------------Anti-AFK----------------------------------
 local antiAfkEnabled = false
 
-createToggle(MiscFrame, "ANTI AFK", 80, function(state)
+createToggle(MiscFrame, "ANTI AFK", 0.25, function(state)
     antiAfkEnabled = state
 end, true)
 
