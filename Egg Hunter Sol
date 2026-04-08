@@ -721,6 +721,10 @@ minusBtn.MouseButton1Click:Connect(function()
         sellLimitLabel.Text = "Bán khi có: " .. sellLimit .. " cá"
     end
 end)
+plusBtn.MouseButton1Click:Connect(function()
+    sellLimit += 1
+    sellLimitLabel.Text = "Bán khi có: " .. sellLimit .. " cá"
+end)
 
 -- ================== EGG TOGGLE (giữ nguyên) ==================
 
