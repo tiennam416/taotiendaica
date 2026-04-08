@@ -319,42 +319,51 @@ local function startObstacleJump()
     obstacleConnection = RunService.Heartbeat:Connect(function()
         if not (autoFishEnabled or autoEggEnabled) then return end
 
-		-- ❗ FIX: nếu gần trứng thì không nhảy
-		if autoEggEnabled then
-    	local egg = findBestEgg()
-    		if egg then
-        		local pos = getEggPosition(egg)
-        		if pos and (hrp.Position - pos).Magnitude <= 4 then
-            		return -- đứng yên, không jump
-        		end
-    		end
-		end
-
-		if autoFishEnabled then
-    	    if (hrp.Position - SHOP_POS).Magnitude <= 4 then
-            	return -- tại sao vẫn nhảy
-            end
-		end
-        
         local character = player.Character
         if not character then return end
+
         local humanoid = character:FindFirstChild("Humanoid")
         local hrp = character:FindFirstChild("HumanoidRootPart")
         if not humanoid or not hrp then return end
 
+        -- ❗ FIX: check gần shop (fish)
+        if autoFishEnabled then
+            if (hrp.Position - SHOP_POS).Magnitude <= 6 then
+                return
+            end
+        end
+
+        -- ❗ FIX: check gần egg
+        if autoEggEnabled then
+            local egg = findBestEgg()
+            if egg then
+                local pos = getEggPosition(egg)
+                if pos and (hrp.Position - pos).Magnitude <= 6 then
+                    return
+                end
+            end
+        end
+
         raycastParams.FilterDescendantsInstances = {character}
+
         local basePos = hrp.Position
         local forward = hrp.CFrame.LookVector * 6
-        local heights = {Vector3.new(0,-1.85,0), Vector3.new(0,0,0), Vector3.new(0,2,0)}
+        local heights = {
+            Vector3.new(0,-1.85,0),
+            Vector3.new(0,0,0),
+            Vector3.new(0,2,0)
+        }
 
         for _, offset in ipairs(heights) do
             local result = workspace:Raycast(basePos + offset, forward, raycastParams)
             if result and result.Instance.CanCollide then
+
                 local highCheck = workspace:Raycast(basePos + Vector3.new(0,3.5,0), forward, raycastParams)
                 if highCheck and highCheck.Instance == result.Instance then
                     hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(20), 0)
                     return
                 end
+
                 if tick() - lastJump > JUMP_COOLDOWN then
                     lastJump = tick()
                     humanoid.JumpPower = 58
@@ -756,9 +765,9 @@ end
 
 local forbiddenZones = {
     {minX = -150, maxX = 20,   minZ = -170, maxZ = -70},
-    {minX = 30,   maxX = 239,  minZ = -700, maxZ = -580},
+    --{minX = 30,   maxX = 239,  minZ = -700, maxZ = -580},
     {minX = 514,  maxX = 653,  minZ = -270, maxZ = -114},
-    {minX = 15,   maxX = 65,   minZ = -459, maxZ = -409}
+    --{minX = 15,   maxX = 65,   minZ = -459, maxZ = -409}
 }
 
 local function isInForbiddenZone(pos)
@@ -1011,4 +1020,31 @@ task.spawn(function()
         end
     end
 end)
-print("🚀 Multi Farm GUI Loaded - Fish + Egg")
+
+
+local positions = {
+    Vector3.new(103.75, 88.6, -425.87),
+    Vector3.new(82.88, 89, -435.2),
+    Vector3.new(67.56, 90.64, -442.11),
+    Vector3.new(172.44, 87.48, -574.37),
+    Vector3.new(182.98, 85.393, -588.4),
+    Vector3.new(191.67, 86.18, -601.11),
+    Vector3.new(179.05, 93.31, -675.37),
+    Vector3.new(138.12, 91, -678.53),
+    Vector3.new(89.36, 99, -646.10),
+    Vector3.new(96, 98, -650)
+}
+
+for _, pos in ipairs(positions) do
+    local part = Instance.new("Part")
+    part.Size = Vector3.new(10, 1, 10)
+    part.Position = pos
+    part.Anchored = true
+    part.CanCollide = true
+    part.Material = Enum.Material.Neon
+    part.Color = Color3.fromRGB(0, 255, 200)
+    part.Transparency = 0.2
+
+    part.Name = "AutoPlatform"
+    part.Parent = workspace
+end
