@@ -977,8 +977,7 @@ local pathduongdi = createToggle(MiscFrame, "HIỆN ĐƯỜNG ĐI", 0.0185, func
     end
 end)
 
--- ================= SPEED SLIDER =================
--- ================= SPEED SLIDER FIX =================
+-- ================= SPEED=================
 local boostEnabled = false
 local speedValue = 20
 local minSpeed = 16
@@ -991,7 +990,7 @@ createToggle(MiscFrame, "USE BOOST SPEED", 0.4, function(state)
         if boostEnabled then
             humanoid.WalkSpeed = speedValue
         else
-            humanoid.WalkSpeed = normalSpeed
+            humanoid.WalkSpeed = minSpeed
         end
     end
 end,true)
