@@ -14,12 +14,6 @@ local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local hrp = character:WaitForChild("HumanoidRootPart")
 
--- 🔁 Auto cập nhật khi respawn
-player.CharacterAdded:Connect(function(char)
-    character = char
-    humanoid = char:WaitForChild("Humanoid")
-    hrp = char:WaitForChild("HumanoidRootPart")
-end)
 -- ================== MAIN GUI ==================
 
 local function autoText(label, min, max)
@@ -315,7 +309,10 @@ raycastParams.IgnoreWater = true
 
 -- Obstacle Jump (dùng chung với Egg)
 local function startObstacleJump()
-    if obstacleConnection then return end
+    if obstacleConnection then
+    obstacleConnection:Disconnect()
+    obstacleConnection = nil
+    end
     obstacleConnection = RunService.Heartbeat:Connect(function()
         if not (autoFishEnabled or autoEggEnabled) then return end
 
@@ -445,12 +442,16 @@ local function smartMoveTo(targetPos)
     local stuckTime = 0
 
     for _, wp in ipairs(waypoints) do
-        if not (autoFishEnabled or autoEggEnabled) then break end
+    if not (autoFishEnabled or autoEggEnabled) then break end
+    
+    -- ❗ FIX chết giữa đường
+    if not character or not character.Parent then return end
+    if not humanoid or humanoid.Health <= 0 then return end
 
-        local startTime = tick()
-        humanoid:MoveTo(wp.Position)
+    local startTime = tick()
+    humanoid:MoveTo(wp.Position)
 
-        local reached = humanoid.MoveToFinished:Wait(2)
+    local reached = humanoid.MoveToFinished:Wait(2)
 
         local moved = (hrp.Position - lastPos).Magnitude
 
@@ -604,6 +605,8 @@ end
 task.spawn(function()
     while true do
         task.wait(0.01)
+        if not character or not character.Parent then continue end
+        if not humanoid or humanoid.Health <= 0 then continue end
         if not autoFishEnabled or selling then continue end
 
         if fishCount >= sellLimit then
@@ -748,7 +751,6 @@ eggCounterLabel.Parent = EggFrame
 Instance.new("UICorner", eggCounterLabel).CornerRadius = UDim.new(0,10)
 
 --------------------------------------------------------
-local character = player.Character or player.CharacterAdded:Wait()
 
 local espEnabled = false
 
@@ -909,6 +911,8 @@ end
 
 task.spawn(function()
     while true do
+        if not character or not character.Parent then continue end
+        if not humanoid or humanoid.Health <= 0 then continue end
         if autoEggEnabled then
             goToBestEgg()
         end
@@ -986,13 +990,14 @@ local minSpeed = 16
 createToggle(MiscFrame, "USE BOOST SPEED", 0.4, function(state)
     boostEnabled = state
 
-    if humanoid then
-        if boostEnabled then
-            humanoid.WalkSpeed = speedValue
-        else
-            humanoid.WalkSpeed = minSpeed
-        end
+    local hum = player.Character and player.Character:FindFirstChild("Humanoid")
+if hum then
+    if boostEnabled then
+        hum.WalkSpeed = speedValue
+    else
+        hum.WalkSpeed = minSpeed
     end
+end
 end,true)
 
 -- ================= ANTI RESET (NHẸ) =================
@@ -1051,3 +1056,54 @@ for _, pos in ipairs(positions) do
     part.Name = "AutoPlatform"
     part.Parent = workspace
 end
+
+
+-- ================= FULL RESPAWN FIX =================
+
+local function setupCharacter(char)
+    character = char
+    humanoid = char:WaitForChild("Humanoid")
+    hrp = char:WaitForChild("HumanoidRootPart")
+
+    -- RESET STATE
+    selling = false
+    fishBiting = false
+    lastClickTime = 0
+    lastFinishClick = 0
+
+    -- Clear path + UI
+    clearPath()
+    StatusLabel.Text = "Status: Respawned..."
+
+    -- Stop mọi thứ cũ
+    stopObstacleJump()
+    task.wait(0.3)
+
+    -- Khi chết
+    humanoid.Died:Connect(function()
+        stopObstacleJump()
+        clearPath()
+        StatusLabel.Text = "Status: Died..."
+    end)
+
+    -- Resume logic
+    task.delay(0.6, function()
+        if autoFishEnabled then
+            StatusLabel.Text = "Status: Resume Fishing..."
+            startObstacleJump()
+            smartMoveTo(FISH_POS)
+
+        elseif autoEggEnabled then
+            StatusLabel.Text = "Status: Resume Egg Hunt..."
+            startObstacleJump()
+        end
+    end)
+end
+
+-- INIT lần đầu
+if player.Character then
+    setupCharacter(player.Character)
+end
+
+-- Respawn
+player.CharacterAdded:Connect(setupCharacter)
