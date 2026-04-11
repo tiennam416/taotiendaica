@@ -757,8 +757,15 @@ local espEnabled = false
 -- ==================== ESP ====================
 local function isEgg(v)
     if not v then return false end
-    return (v:IsA("BasePart") or v:IsA("Model")) and string.find(string.lower(v.Name), "egg")
+    
+    local isEggName = (v:IsA("BasePart") or v:IsA("Model")) 
+        and string.find(string.lower(v.Name), "egg")
+
+    local hasPrompt = v:FindFirstChildOfClass("ProximityPrompt") ~= nil
+
+    return isEggName and hasPrompt
 end
+
 
 getEggPosition = function(egg)
     if egg:IsA("MeshPart") then return egg.Position end
