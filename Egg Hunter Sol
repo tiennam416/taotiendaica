@@ -755,24 +755,34 @@ Instance.new("UICorner", eggCounterLabel).CornerRadius = UDim.new(0,10)
 local espEnabled = false
 
 -- ==================== ESP ====================
+
 local function isEgg(v)
     if not v then return false end
+    if not (v:IsA("BasePart") or v:IsA("Model")) then return false end
     
-    local isEggName = (v:IsA("BasePart") or v:IsA("Model")) 
-        and string.find(string.lower(v.Name), "egg")
+    -- kiểm tra tên có chứa "egg"
+    local isEggName = string.find(string.lower(v.Name), "egg")
+    if not isEggName then return false end
 
-    local hasPrompt = v:FindFirstChildOfClass("ProximityPrompt") ~= nil
+    -- kiểm tra có ProximityPrompt giống triggerProximityPrompt
+    local prompt = v:FindFirstChildOfClass("ProximityPrompt") 
+        or v:FindFirstChild("ProximityPrompt", true)
 
-    return isEggName and hasPrompt
+    return prompt ~= nil
 end
 
 
 getEggPosition = function(egg)
-    if egg:IsA("MeshPart") then return egg.Position end
+    if egg:IsA("MeshPart") then
+        return egg.Position
+    end
+    
     if egg:IsA("Model") then
-        local root = egg:FindFirstChild("HumanoidRootPart") or egg:FindFirstChildWhichIsA("BasePart")
+        local root = egg:FindFirstChild("HumanoidRootPart")
+            or egg:FindFirstChildWhichIsA("BasePart")
         return root and root.Position or egg:GetPivot().Position
     end
+    
     return nil
 end
 
