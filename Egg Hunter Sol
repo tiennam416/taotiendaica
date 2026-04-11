@@ -378,10 +378,35 @@ local function stopObstacleJump()
         obstacleConnection = nil
     end
 end
+local currentPathParts = {}
 
+local  function clearPath()
+    for _, p in pairs(currentPathParts) do
+        if p and p.Parent then
+            p:Destroy()
+        end
+    end
+    currentPathParts = {}
+end
 
-local drawPath
-local clearPath
+local function drawPath(waypoints)
+    clearPath()
+
+    for _, wp in ipairs(waypoints) do
+        local part = Instance.new("Part")
+        part.Size = Vector3.new(0.6, 0.6, 0.6)
+        part.Shape = Enum.PartType.Ball
+        part.Material = Enum.Material.Neon
+        part.Color = Color3.fromRGB(0, 255, 200)
+        part.Anchored = true
+        part.CanCollide = false
+        part.Position = wp.Position + Vector3.new(0, 0.5, 0)
+        part.Parent = workspace
+
+        table.insert(currentPathParts, part)
+    end
+end
+
 local showPathEnabled = false
 
 local function smartMoveTo(targetPos)
@@ -400,8 +425,8 @@ local function smartMoveTo(targetPos)
             Costs = {
                 Water = math.huge,
                 Tree = math.huge,
-                bossPortal = 999999999,
-                House = 999999999
+                bossPortal = math.huge,
+                House = math.huge
             }
         })
     end
@@ -443,6 +468,17 @@ local function smartMoveTo(targetPos)
 
     for _, wp in ipairs(waypoints) do
     if not (autoFishEnabled or autoEggEnabled) then break end
+
+	if autoEggEnabled then
+        local newEgg = findBestEgg()
+        if newEgg then
+            local newPos = getEggPosition(newEgg)
+            if newPos and (newPos - targetPos).Magnitude > 25 then
+				task.wait(0.05)
+                return 
+            end
+        end
+    end
     
     -- ❗ FIX chết giữa đường
     if not character or not character.Parent then return end
@@ -569,11 +605,11 @@ local function openShop()
     
     for i = 1, fishCount do
         clickScale(833, 430)
-        task.wait(0.25)
+        task.wait(0.3)
         clickScale(676, 809)
-        task.wait(0.25)
+        task.wait(0.3)
         clickScale(825, 630)
-        task.wait(0.22)
+        task.wait(0.3)
     end
     
     fishCount = 0
@@ -960,36 +996,6 @@ end)
 
 
 -------------------------MISC--------------------------------------
--- ================= PATH VISUALIZER =================
-local currentPathParts = {}
-
-function clearPath()
-    for _, p in pairs(currentPathParts) do
-        if p and p.Parent then
-            p:Destroy()
-        end
-    end
-    currentPathParts = {}
-end
-
-function drawPath(waypoints)
-    clearPath()
-
-    for _, wp in ipairs(waypoints) do
-        local part = Instance.new("Part")
-        part.Size = Vector3.new(0.6, 0.6, 0.6)
-        part.Shape = Enum.PartType.Ball
-        part.Material = Enum.Material.Neon
-        part.Color = Color3.fromRGB(0, 255, 200)
-        part.Anchored = true
-        part.CanCollide = false
-        part.Position = wp.Position + Vector3.new(0, 0.5, 0)
-        part.Parent = workspace
-
-        table.insert(currentPathParts, part)
-    end
-end
-
 -- Toggle
 local pathduongdi = createToggle(MiscFrame, "HIỆN ĐƯỜNG ĐI", 0.0185, function(state)
     showPathEnabled = state
@@ -1022,7 +1028,10 @@ task.spawn(function()
     while true do
         if boostEnabled then
             task.wait(60)
-			humanoid.WalkSpeed = speedValue
+			local hum = player.Character and player.Character:FindFirstChild("Humanoid")
+			if hum then
+    			hum.WalkSpeed = speedValue
+			end
         end
     end
 end)
