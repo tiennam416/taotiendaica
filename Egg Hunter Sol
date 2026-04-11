@@ -53,7 +53,7 @@ local sizeConstraint = Instance.new("UISizeConstraint")
 --sizeConstraint.MaxSize = Vector2.new(900, 700)
 --sizeConstraint.MinSize = Vector2.new(300, 300)
 sizeConstraint.MaxSize = Vector2.new(650, 400)
-sizeConstraint.MinSize = Vector2.new(350, 250)
+sizeConstraint.MinSize = Vector2.new(350, 300)
 sizeConstraint.Parent = Main
 
 
@@ -453,10 +453,13 @@ local function smartMoveTo(targetPos)
     -- ❌ FAIL PATH → clear + teleport
     if not success or path.Status ~= Enum.PathStatus.Success then
     clearPath()
-    StatusLabel.Text = "Status: Path failed! Retrying..."
-    task.wait(0.5)
-    return -- ❗ không teleport nữa
-	end
+    StatusLabel.Text = "Status: Path failed! Resetting..."
+
+    player:LoadCharacter()
+
+    task.wait(3)
+    return
+end
 
     -- ✅ LẤY WAYPOINT + VẼ PATH
     local waypoints = path:GetWaypoints()
