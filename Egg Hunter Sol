@@ -74,7 +74,7 @@ Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 16)
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 1, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🔥Sol's RNG LỌ"
+Title.Text = "LỌ HUB---Sol's RNG|  v.1.0.1"
 Title.TextScaled = false
 autoText(Title, 18, 28)
 Title.Font = Enum.Font.GothamBold
