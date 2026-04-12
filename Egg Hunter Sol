@@ -413,7 +413,15 @@ end
 
 local showPathEnabled = false
 
-local function smartMoveTo(targetPos)
+local function smartMoveTo(targetPos, retry)
+    retry = retry or 0
+
+    -- ❗ GIỚI HẠN RETRY
+    if retry >= 3 then
+        StatusLabel.Text = "Status: Path failed!"
+        return
+    end
+
     local character = player.Character or player.CharacterAdded:Wait()
     local humanoid = character:WaitForChild("Humanoid")
     local hrp = character:WaitForChild("HumanoidRootPart")
@@ -446,12 +454,12 @@ local function smartMoveTo(targetPos)
     local path = createPath()
     if not computePath(path) then
         task.wait(0.25)
+
         path = createPath()
         if not computePath(path) then
             clearPath()
             StatusLabel.Text = "Status: Path failed → retrying..."
 
-            -- ❌ NO TELEPORT → chỉ đổi hướng nhẹ rồi thử lại
             local offset = Vector3.new(
                 math.random(-12, 12),
                 0,
@@ -459,7 +467,9 @@ local function smartMoveTo(targetPos)
             )
 
             task.wait(0.2)
-            return smartMoveTo(targetPos + offset)
+
+            -- ✅ FIX: có retry
+            return smartMoveTo(targetPos + offset, retry + 1)
         end
     end
 
@@ -499,17 +509,19 @@ local function smartMoveTo(targetPos)
             humanoid.Jump = true
             task.wait(0.1)
 
-            -- sidestep (NO TELEPORT CHEAT, chỉ di chuyển hợp lệ)
             local side = Vector3.new(math.random(-1,1), 0, math.random(-1,1))
             if side.Magnitude == 0 then side = Vector3.new(1,0,0) end
 
             humanoid:MoveTo(hrp.Position + side.Unit * 6)
             humanoid.MoveToFinished:Wait(1)
 
-            -- 🔄 REPATH FROM CURRENT POSITION
-            return smartMoveTo(targetPos)
+            -- ✅ FIX: có retry
+            return smartMoveTo(targetPos, retry + 1)
         end
     end
+
+    -- ✅ FIX: tránh đứng yên sau khi đi xong
+    humanoid:Move(Vector3.zero)
 end
 -- Find Fishing UI elements
 local movingBar, targetBar, startfishing, exitfishing, status, shopfish = nil, nil, nil, nil, nil, nil
@@ -767,15 +779,15 @@ local function isEgg(v)
     if not v then return false end
     if not (v:IsA("BasePart") or v:IsA("Model")) then return false end
     
-    -- kiểm tra tên có chứa "egg"
-    local isEggName = string.find(string.lower(v.Name), "egg")
-    if not isEggName then return false end
+    if not string.find(string.lower(v.Name), "egg") then return false end
 
-    -- kiểm tra có ProximityPrompt giống triggerProximityPrompt
     local prompt = v:FindFirstChildOfClass("ProximityPrompt") 
         or v:FindFirstChild("ProximityPrompt", true)
 
-    return prompt ~= nil
+    -- ❗ FIX: phải enabled
+    if not prompt or not prompt.Enabled then return false end
+
+    return true
 end
 
 
@@ -918,21 +930,35 @@ local function triggerProximityPrompt(egg)
         eggCounterLabel.Text = "🥚 Eggs Collected: "..eggCollected
     end
 end
+
+local isMovingToEgg = false
+
 local function goToBestEgg()
-    if not autoEggEnabled then return end
+    if not autoEggEnabled or isMovingToEgg then return end
     
     local egg = findBestEgg()
-    if not egg then return end
-
-    local pos = getEggPosition(egg)
-
-    if (hrp.Position - pos).Magnitude <= 10 then
-        triggerProximityPrompt(egg)
-        task.wait(0.8)
+    if not egg then
+        StatusLabel.Text = "Status: No egg found..."
+        task.wait(1)
         return
     end
 
-    smartMoveTo(pos)
+    local pos = getEggPosition(egg)
+    if not pos then return end
+
+    isMovingToEgg = true
+
+    local success = pcall(function()
+        if (hrp.Position - pos).Magnitude <= 8 then
+            triggerProximityPrompt(egg)
+            task.wait(0.8)
+        else
+            smartMoveTo(pos)
+        end
+    end)
+
+    -- ✅ ALWAYS RESET (quan trọng)
+    isMovingToEgg = false
 end
 
 task.spawn(function()
