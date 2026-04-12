@@ -455,7 +455,7 @@ local function smartMoveTo(targetPos)
     clearPath()
     StatusLabel.Text = "Status: Path failed! Resetting..."
 
-    player:LoadCharacter()
+    game.Players.LocalPlayer.Character:BreakJoints()
 
     task.wait(3)
     return
