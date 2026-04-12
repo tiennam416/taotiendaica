@@ -1027,36 +1027,62 @@ task.spawn(function()
         end
     end
 end)
+local folder = workspace:FindFirstChild("AutoPlatforms")
 
+if not folder then
+    folder = Instance.new("Folder")
+    folder.Name = "AutoPlatforms"
+    folder.Parent = workspace
+end
 
-local positions = {
-    Vector3.new(103.75, 88.6, -425.87),
-    Vector3.new(82.88, 89, -435.2),
-    Vector3.new(67.56, 90.64, -442.11),
-    Vector3.new(172.44, 87.48, -574.37),
-    Vector3.new(182.98, 85.393, -588.4),
-    Vector3.new(191.67, 86.18, -601.11),
-    Vector3.new(179.05, 93.31, -675.37),
-    Vector3.new(138.12, 91, -678.53),
-    Vector3.new(89.36, 99, -646.10),
-    Vector3.new(96, 98, -650)
+local platforms = {
+    {pos = Vector3.new(103.75, 88.6, -425.87)},
+    {pos = Vector3.new(82.88, 89, -435.2)},
+    {pos = Vector3.new(67.56, 90.64, -442.11)},
+    {pos = Vector3.new(172.44, 87.48, -574.37)},
+    {pos = Vector3.new(182.98, 85.393, -588.4)},
+    {pos = Vector3.new(191.67, 86.18, -601.11)},
+    {pos = Vector3.new(179.05, 93.31, -675.37)},
+    {pos = Vector3.new(138.12, 91, -678.53)},
+    {pos = Vector3.new(89.36, 99, -646.10)},
+    {pos = Vector3.new(96, 98, -650)},
+
+    {
+        pos = Vector3.new(520, 112, -176),
+        rot = Vector3.new(-48.832000732421875, 18.110000610351562, 4.568999767303467)
+    },
+    {
+        pos = Vector3.new(520, 108, -180),
+        rot = Vector3.new(-57.83599853515625, 35.8489990234375, 27.96299934387207)
+    },
+    {
+        pos = Vector3.new(62, 108, -640),
+        rot = Vector3.new(90, 30, 90)
+    }
 }
 
-for _, pos in ipairs(positions) do
+for _, data in ipairs(platforms) do
     local part = Instance.new("Part")
     part.Size = Vector3.new(10, 1, 10)
-    part.Position = pos
     part.Anchored = true
     part.CanCollide = true
     part.Material = Enum.Material.Neon
     part.Color = Color3.fromRGB(0, 255, 200)
     part.Transparency = 0.2
-
     part.Name = "AutoPlatform"
-    part.Parent = workspace
+
+    if data.rot then
+        part.CFrame = CFrame.new(data.pos) * CFrame.Angles(
+            math.rad(data.rot.X),
+            math.rad(data.rot.Y),
+            math.rad(data.rot.Z)
+        )
+    else
+        part.Position = data.pos
+    end
+
+    part.Parent = folder -- 👈 cho vào Folder thay vì workspace
 end
-
-
 -- ================= FULL RESPAWN FIX =================
 
 local function setupCharacter(char)
