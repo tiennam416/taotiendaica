@@ -74,9 +74,9 @@ Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 16)
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 1, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "LỌ HUB---Sol's RNG|  v.1.0.1"
+Title.Text = "LỌ HUB Sol's RNG|  v.1.0.1"
 Title.TextScaled = false
-autoText(Title, 18, 28)
+autoText(Title, 15, 25)
 Title.Font = Enum.Font.GothamBold
 Title.TextColor3 = Color3.new(1,1,1)
 Title.Parent = TitleBar
@@ -436,32 +436,33 @@ local function smartMoveTo(targetPos)
     end
 
     local function computePath(path)
-        return pcall(function()
+        local ok = pcall(function()
             path:ComputeAsync(hrp.Position, targetPos)
         end)
+        return ok and path.Status == Enum.PathStatus.Success
     end
 
+    -- ================= RETRY PATH =================
     local path = createPath()
-    local success = computePath(path)
-
-    if not success or path.Status ~= Enum.PathStatus.Success then
-        task.wait(0.3)
+    if not computePath(path) then
+        task.wait(0.25)
         path = createPath()
-        success = computePath(path)
+        if not computePath(path) then
+            clearPath()
+            StatusLabel.Text = "Status: Path failed → retrying..."
+
+            -- ❌ NO TELEPORT → chỉ đổi hướng nhẹ rồi thử lại
+            local offset = Vector3.new(
+                math.random(-12, 12),
+                0,
+                math.random(-12, 12)
+            )
+
+            task.wait(0.2)
+            return smartMoveTo(targetPos + offset)
+        end
     end
 
-    -- ❌ FAIL PATH → clear + teleport
-    if not success or path.Status ~= Enum.PathStatus.Success then
-    clearPath()
-    StatusLabel.Text = "Status: Path failed! Resetting..."
-
-    game.Players.LocalPlayer.Character:BreakJoints()
-
-    task.wait(3)
-    return
-end
-
-    -- ✅ LẤY WAYPOINT + VẼ PATH
     local waypoints = path:GetWaypoints()
 
     if showPathEnabled then
@@ -474,31 +475,16 @@ end
     local stuckTime = 0
 
     for _, wp in ipairs(waypoints) do
-    if not (autoFishEnabled or autoEggEnabled) then break end
+        if not character or humanoid.Health <= 0 then return end
+        if not (autoFishEnabled or autoEggEnabled) then return end
 
-	if autoEggEnabled then
-        local newEgg = findBestEgg()
-        if newEgg then
-            local newPos = getEggPosition(newEgg)
-            if newPos and (newPos - targetPos).Magnitude > 25 then
-				task.wait(0.05)
-                return 
-            end
-        end
-    end
-    
-    -- ❗ FIX chết giữa đường
-    if not character or not character.Parent then return end
-    if not humanoid or humanoid.Health <= 0 then return end
+        humanoid:MoveTo(wp.Position)
 
-    local startTime = tick()
-    humanoid:MoveTo(wp.Position)
-
-    local reached = humanoid.MoveToFinished:Wait(2)
-
+        local reached = humanoid.MoveToFinished:Wait(1.5)
         local moved = (hrp.Position - lastPos).Magnitude
 
-        if moved < 0.5 then
+        -- ================= STUCK CHECK =================
+        if moved < 0.55 or not reached then
             stuckTime += 1
         else
             stuckTime = 0
@@ -506,46 +492,22 @@ end
 
         lastPos = hrp.Position
 
-        -- 💥 FIX KẸT
-        if stuckTime >= 2 or not reached or (tick() - startTime > 2) then
-            StatusLabel.Text = "Status: Stuck! Fixing..."
+        -- ================= UNSTUCK FIX =================
+        if stuckTime >= 2 then
+            StatusLabel.Text = "Status: Unstucking..."
 
-            if humanoid:GetState() ~= Enum.HumanoidStateType.Freefall then
-                humanoid.Jump = true
-            end
-
+            humanoid.Jump = true
             task.wait(0.1)
 
-            local randomDir = Vector3.new(
-                math.random(-1,1),
-                0,
-                math.random(-1,1)
-            )
+            -- sidestep (NO TELEPORT CHEAT, chỉ di chuyển hợp lệ)
+            local side = Vector3.new(math.random(-1,1), 0, math.random(-1,1))
+            if side.Magnitude == 0 then side = Vector3.new(1,0,0) end
 
-            if randomDir.Magnitude == 0 then
-                randomDir = Vector3.new(1,0,0)
-            end
+            humanoid:MoveTo(hrp.Position + side.Unit * 6)
+            humanoid.MoveToFinished:Wait(1)
 
-            randomDir = randomDir.Unit
-            local escapePos = hrp.Position + randomDir * 8
-
-            humanoid:MoveTo(escapePos)
-            humanoid.MoveToFinished:Wait(1.2)
-
-            -- 🔄 REPATH + VẼ LẠI PATH
-            path = createPath()
-            computePath(path)
-
-            local newWaypoints = path:GetWaypoints()
-
-            if showPathEnabled then
-                drawPath(newWaypoints)
-            else
-                clearPath()
-            end
-
-            stuckTime = 0
-            continue
+            -- 🔄 REPATH FROM CURRENT POSITION
+            return smartMoveTo(targetPos)
         end
     end
 end
