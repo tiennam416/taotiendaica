@@ -473,11 +473,15 @@ local function smartMoveTo(targetPos, retry)
     retry = retry or 0
 
     -- ❗ GIỚI HẠN RETRY
-    if retry >= 3 then
-        StatusLabel.Text = "Status: Path failed!"
-        return
+   if retry >= 15 then
+    StatusLabel.Text = "Status: Stuck → Resetting..."
+
+    if humanoid and humanoid.Health > 0 then
+        humanoid.Health = 0 -- 💀 tự chết
     end
 
+    return
+end
     local character = player.Character or player.CharacterAdded:Wait()
     local humanoid = character:WaitForChild("Humanoid")
     local hrp = character:WaitForChild("HumanoidRootPart")
@@ -1174,6 +1178,7 @@ local platforms = {
     {pos = Vector3.new(138.12, 91, -678.53)},
     {pos = Vector3.new(89.36, 99, -646.10)},
     {pos = Vector3.new(96, 98, -650)},
+    {pos = Vector3.new(510, 94.5, -132)},
 
     {
         pos = Vector3.new(520, 112, -176),
