@@ -473,11 +473,11 @@ local function smartMoveTo(targetPos, retry)
     retry = retry or 0
 
     -- ❗ GIỚI HẠN RETRY
-   if retry >= 15 then
+   if retry >= 10 then
     StatusLabel.Text = "Status: Stuck → Resetting..."
 
     if humanoid and humanoid.Health > 0 then
-        humanoid.Health = 0 -- 💀 tự chết
+        humanoid.Health = 0
     end
 
     return
