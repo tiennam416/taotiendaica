@@ -2,7 +2,7 @@ local player = game.Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
 
 local gui = PlayerGui:WaitForChild("MainInterface")
-
+local TweenService = game:GetService("TweenService")
 local vim = game:GetService("VirtualInputManager")
 local PathfindingService = game:GetService("PathfindingService")
 local RunService = game:GetService("RunService")
@@ -52,8 +52,8 @@ Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 16)
 local sizeConstraint = Instance.new("UISizeConstraint")
 --sizeConstraint.MaxSize = Vector2.new(900, 700)
 --sizeConstraint.MinSize = Vector2.new(300, 300)
-sizeConstraint.MaxSize = Vector2.new(650, 400)
-sizeConstraint.MinSize = Vector2.new(350, 300)
+sizeConstraint.MaxSize = Vector2.new(700, 450)
+sizeConstraint.MinSize = Vector2.new(350, 320)
 sizeConstraint.Parent = Main
 
 
@@ -171,41 +171,97 @@ tabs[1].frame.Visible = true
 tabs[1].button.BackgroundColor3 = Color3.fromRGB(60,60,90)
 tabs[1].stroke.Transparency = 0
 
--- ================== TOGGLE FUNCTION ==================
+-- ================== TOGGLE FUNCTION =================
 local function createToggle(parent, text, posY, callback, default)
+
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.8, 0, 0.15, 0)
-    btn.Position = UDim2.new(0.1, 0, posY, 0)
+    btn.Size = UDim2.new(0.8, 0, 0.12, 0)
+    btn.Position = UDim2.new(0.05, 0, posY, 0)
+
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    btn.BackgroundTransparency = 0.4
+    btn.Text = text
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.TextXAlignment = Enum.TextXAlignment.Left
     btn.TextScaled = false
     autoText(btn, 14, 20)
 
+    local padding = Instance.new("UIPadding")
+    padding.PaddingLeft = UDim.new(0, 10)
+    padding.Parent = btn
+
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+
+    btn.Parent = parent
+
     local enabled = default or false
 
-    btn.BackgroundColor3 = enabled and Color3.fromRGB(0,200,120) or Color3.fromRGB(40,40,55)
-    btn.Text = text .. ": " .. (enabled and "ON" or "OFF")
+    -- 🔥 TOGGLE BG (ổn định cho mobile + PC)
+    local toggleBG = Instance.new("Frame")
+    toggleBG.Parent = btn
+    toggleBG.Size = UDim2.new(0, 44, 0, 24)
+    toggleBG.Position = UDim2.new(1, -10, 0.5, 0)
+    toggleBG.AnchorPoint = Vector2.new(1, 0.5)
 
-    btn.Font = Enum.Font.GothamSemibold
-    btn.TextColor3 = Color3.new(1,1,1)
-    btn.BackgroundTransparency = 0.5
-    btn.Parent = parent
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,10)
+    toggleBG.BackgroundColor3 = enabled and Color3.fromRGB(0, 200, 120) or Color3.fromRGB(80, 80, 80)
+    toggleBG.BorderSizePixel = 0
 
+    Instance.new("UICorner", toggleBG).CornerRadius = UDim.new(1, 0)
+
+    -- 🔥 đảm bảo không bị quá nhỏ / quá to trên mobile
+    local sizeLimit = Instance.new("UISizeConstraint")
+    sizeLimit.MinSize = Vector2.new(40, 20)
+    sizeLimit.MaxSize = Vector2.new(80, 40)
+    sizeLimit.Parent = toggleBG
+
+    -- 🔥 CIRCLE (nút tròn)
+    local circle = Instance.new("Frame")
+    circle.Parent = toggleBG
+    circle.Size = UDim2.new(0, 20, 0, 20)
+    circle.AnchorPoint = Vector2.new(0.5, 0.5)
+
+    circle.Position = enabled
+        and UDim2.new(0.75, 0, 0.5, 0)
+        or UDim2.new(0.25, 0, 0.5, 0)
+
+    circle.BackgroundColor3 = Color3.new(1, 1, 1)
+    circle.BorderSizePixel = 0
+
+    Instance.new("UICorner", circle).CornerRadius = UDim.new(1, 0)
+
+    -- 🔥 CLICK EVENT
     btn.MouseButton1Click:Connect(function()
         enabled = not enabled
-        btn.Text = text .. ": " .. (enabled and "ON" or "OFF")
-        btn.BackgroundColor3 = enabled and Color3.fromRGB(0,200,120) or Color3.fromRGB(40,40,55)
 
-        if callback then callback(enabled) end
+        toggleBG.BackgroundColor3 = enabled
+            and Color3.fromRGB(0, 200, 120)
+            or Color3.fromRGB(80, 80, 80)
+
+        circle:TweenPosition(
+            enabled and UDim2.new(0.75, 0, 0.5, 0)
+                    or UDim2.new(0.25, 0, 0.5, 0),
+            Enum.EasingDirection.Out,
+            Enum.EasingStyle.Quad,
+            0.2,
+            true
+        )
+
+        if callback then
+            callback(enabled)
+        end
     end)
 
-    -- gọi callback ngay từ đầu
-    if callback then callback(enabled) end
+    -- 🔥 init callback
+    if callback then
+        callback(enabled)
+    end
 
     return btn
 end
 -- ================== FLOAT BUTTON ==================
 local ToggleButton = Instance.new("ImageButton")
-ToggleButton.Size = UDim2.new(0.03, 20, 0.06, 20)
+ToggleButton.Size = UDim2.new(0.025, 20, 0.05, 20)
 ToggleButton.Position = UDim2.new(0.02, 0, 0.5, 0)
 ToggleButton.AnchorPoint = Vector2.new(0, 0.5)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
@@ -243,8 +299,8 @@ end)
 -- =============================================
 
 local FishCounterLabel = Instance.new("TextLabel")
-FishCounterLabel.Size = UDim2.new(0.8, 0, 0.15, 0)
-FishCounterLabel.Position = UDim2.new(0.1, 0, 0.05, 0)
+FishCounterLabel.Size = UDim2.new(0.8, 0, 0.12, 0)
+FishCounterLabel.Position = UDim2.new(0.05, 0, 0.05, 0)
 FishCounterLabel.BackgroundColor3 = Color3.fromRGB(40,40,55)
 FishCounterLabel.Text = "🎣 FISH: 0"
 FishCounterLabel.TextScaled = false
@@ -257,7 +313,7 @@ Instance.new("UICorner", FishCounterLabel).CornerRadius = UDim.new(0,10)
 
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0.4, 0, 0.07, 0)
-StatusLabel.Position = UDim2.new(0.3, 0, 0.25, 0)
+StatusLabel.Position = UDim2.new(0.25, 0, 0.25, 0)
 StatusLabel.BackgroundTransparency = 1
 StatusLabel.Text = "Status: Idle"
 StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 200)
@@ -755,8 +811,8 @@ end)
 -- =============================================
 
 local eggCounterLabel = Instance.new("TextButton")
-eggCounterLabel.Size = UDim2.new(0.8, 0, 0.15, 0)
-eggCounterLabel.Position = UDim2.new(0.1, 0, 0.05, 0)
+eggCounterLabel.Size = UDim2.new(0.8, 0, 0.12, 0)
+eggCounterLabel.Position = UDim2.new(0.05, 0, 0.05, 0)
 eggCounterLabel.BackgroundColor3 = Color3.fromRGB(40,40,55)
 eggCounterLabel.Text = "🥚 EGGS: 0"
 eggCounterLabel.TextScaled = false
@@ -771,38 +827,36 @@ Instance.new("UICorner", eggCounterLabel).CornerRadius = UDim.new(0,10)
 
 --------------------------------------------------------
 
-local espEnabled = false
-
 -- ==================== ESP ====================
+local espEnabled = false
+local eggHighlights = {}  -- Để quản lý và dọn dẹp dễ dàng
 
 local function isEgg(v)
-    if not v then return false end
+    if not v or not v.Parent then return false end
     if not (v:IsA("BasePart") or v:IsA("Model")) then return false end
     
-    if not string.find(string.lower(v.Name), "egg") then return false end
+    local nameLower = string.lower(v.Name)
+    if not string.find(nameLower, "egg") then return false end
 
     local prompt = v:FindFirstChildOfClass("ProximityPrompt") 
         or v:FindFirstChild("ProximityPrompt", true)
 
-    -- ❗ FIX: phải enabled
     if not prompt or not prompt.Enabled then return false end
 
     return true
 end
 
-
 getEggPosition = function(egg)
-    if egg:IsA("MeshPart") then
+    if egg:IsA("MeshPart") or egg:IsA("Part") then
         return egg.Position
     end
     
     if egg:IsA("Model") then
-        local root = egg:FindFirstChild("HumanoidRootPart")
-            or egg:FindFirstChildWhichIsA("BasePart")
+        local root = egg:FindFirstChild("HumanoidRootPart") 
+                  or egg:FindFirstChildWhichIsA("BasePart")
         return root and root.Position or egg:GetPivot().Position
     end
-    
-    return nil
+    return egg.Position
 end
 
 local forbiddenZones = {
@@ -823,81 +877,129 @@ local function isInForbiddenZone(pos)
     return false
 end
 
+local function getEggInfo(egg)
+    local nameLower = string.lower(egg.Name)
+    local displayName = "Egg"
+    local color = Color3.fromRGB(180, 0, 255)
+    local emoji = "🥚"
+
+    if string.find(nameLower, "point_egg") then
+        local num = string.match(egg.Name, "(%d+)") or "?"
+        displayName = "Point Egg " .. num
+        emoji = "⭐"
+        color = Color3.fromRGB(255, 215, 0)  -- Vàng đẹp
+    elseif string.find(nameLower, "potion") then
+        displayName = "Potion Egg"
+        emoji = "🧪"
+        color = Color3.fromRGB(0, 255, 180)
+    elseif string.find(nameLower, "special") or string.find(nameLower, "rainbow") then
+        displayName = "Special Egg"
+        emoji = "🌈"
+        color = Color3.fromRGB(255, 100, 255)
+    end
+
+    return {
+        name = displayName,
+        emoji = emoji,
+        color = color
+    }
+end
+
 local function createESP(egg)
-    if egg:FindFirstChild("EggHighlight") then return end
+    -- Xóa ESP cũ nếu có
+    if egg:FindFirstChild("EggHighlight") then egg.EggHighlight:Destroy() end
+    if egg:FindFirstChild("EggESPBillboard") then egg.EggESPBillboard:Destroy() end
 
     local pos = getEggPosition(egg)
-    local nameLower = string.lower(egg.Name)
-    local isPointEgg = string.find(nameLower, "point_egg")
-    local isPotionEgg = string.find(nameLower, "potion")
-    local inForbidden = isPointEgg and isInForbiddenZone(pos)
+    if not pos then return end
 
+    local info = getEggInfo(egg)
+
+    -- Highlight đẹp hơn
     local highlight = Instance.new("Highlight")
     highlight.Name = "EggHighlight"
-    if inForbidden then
-        highlight.FillColor = Color3.fromRGB(255, 50, 50)
-        highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
-    elseif isPotionEgg then
-        highlight.FillColor = Color3.fromRGB(0, 255, 200)
-        highlight.OutlineColor = Color3.fromRGB(0, 255, 150)
-    elseif isPointEgg then
-        highlight.FillColor = Color3.fromRGB(255, 255, 0)
-        highlight.OutlineColor = Color3.fromRGB(255, 200, 0)
-    else
-        highlight.FillColor = Color3.fromRGB(180, 0, 255)
-        highlight.OutlineColor = Color3.fromRGB(255, 0, 255)
-    end
-    highlight.FillTransparency = 0.35
-    highlight.OutlineTransparency = 0
-    highlight.Adornee = egg:IsA("Model") and (egg.PrimaryPart or egg:FindFirstChildWhichIsA("BasePart")) or egg
+    highlight.Adornee = egg:IsA("Model") and (egg.PrimaryPart or egg:FindFirstChildWhichIsA("BasePart") or egg) or egg
+    highlight.FillColor = info.color
+    highlight.OutlineColor = info.color
+    highlight.FillTransparency = 0.4
+    highlight.OutlineTransparency = 0.1
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     highlight.Parent = egg
 
+    -- Billboard GUI (thông tin)
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "EggESPBillboard"
-    billboard.Size = UDim2.new(0, 140, 0, 45)
+    billboard.Size = UDim2.new(0, 160, 0, 55)
+    billboard.StudsOffset = Vector3.new(0, 4.5, 0)
     billboard.AlwaysOnTop = true
-    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.LightInfluence = 0
     billboard.Parent = egg
 
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1,0,1,0)
-    label.BackgroundTransparency = 1
-    label.TextStrokeTransparency = 0
-    label.TextScaled = true
-    label.Font = Enum.Font.GothamBold
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundTransparency = 0.35
+    frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    frame.Parent = billboard
 
-    if isPointEgg then
-        local num = string.match(egg.Name, "(%d+)") or "?"
-        label.Text = inForbidden and "❌ Egg "..num or "🥚 Egg "..num
-        label.TextColor3 = inForbidden and Color3.fromRGB(255,80,80) or Color3.fromRGB(255,255,0)
-    elseif isPotionEgg then
-        label.Text = "🧪 Potion Egg"
-        label.TextColor3 = Color3.fromRGB(0,255,200)
-    else
-        label.Text = "🌈 Special Egg"
-        label.TextColor3 = Color3.fromRGB(200,100,255)
-    end
-    label.Parent = billboard
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+    Instance.new("UIStroke", frame).Color = info.color
+    Instance.new("UIStroke", frame).Thickness = 1.5
+    Instance.new("UIStroke", frame).Transparency = 0.3
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -10, 1, -6)
+    label.Position = UDim2.new(0, 5, 0, 3)
+    label.BackgroundTransparency = 1
+    label.Text = info.emoji .. "  " .. info.name
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.TextStrokeTransparency = 0
+    label.TextStrokeColor3 = Color3.new(0, 0, 0)
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 15
+    label.TextScaled = true
+    label.Parent = frame
+
+    -- Lưu lại để quản lý
+    eggHighlights[egg] = {highlight = highlight, billboard = billboard}
 end
 
 local function clearESP()
     for _, v in pairs(workspace:GetDescendants()) do
-        if v:FindFirstChild("EggHighlight") then v.EggHighlight:Destroy() end
-        if v:FindFirstChild("EggESPBillboard") then v.EggESPBillboard:Destroy() end
+        if v:FindFirstChild("EggHighlight") then 
+            v.EggHighlight:Destroy() 
+        end
+        if v:FindFirstChild("EggESPBillboard") then 
+            v.EggESPBillboard:Destroy() 
+        end
     end
+    eggHighlights = {}
 end
 
 local function scanEggs()
     if not espEnabled then return end
+    
     for _, v in pairs(workspace:GetChildren()) do
-        if isEgg(v) then createESP(v) end
+        if isEgg(v) and not v:FindFirstChild("EggHighlight") then
+            createESP(v)
+        end
     end
 end
 
 task.spawn(function()
     while true do
-        if espEnabled then scanEggs() end
-        task.wait(2)
+        if espEnabled then
+            scanEggs()
+        end
+        task.wait(1.5)  -- Giảm tần suất để tối ưu hiệu năng
+    end
+end)
+
+-- Cleanup khi egg bị destroy
+workspace.DescendantRemoving:Connect(function(desc)
+    if desc:FindFirstChild("EggHighlight") or desc:FindFirstChild("EggESPBillboard") then
+        if eggHighlights[desc] then
+            eggHighlights[desc] = nil
+        end
     end
 end)
 -- ================== PATHFINDING & COLLECT ==================
@@ -1001,7 +1103,7 @@ local pathduongdi = createToggle(MiscFrame, "HIỆN ĐƯỜNG ĐI", 0.0185, func
     if not state then
         clearPath()
     end
-end)
+end,true)
 
 -- ================= SPEED=================
 local boostEnabled = false
@@ -1038,7 +1140,7 @@ end)
 -- ----------------------Anti-AFK----------------------------------
 local antiAfkEnabled = false
 
-createToggle(MiscFrame, "ANTI AFK", 0.2, function(state)
+createToggle(MiscFrame, "ANTI AFK", 0.21, function(state)
     antiAfkEnabled = state
 end, true)
 
