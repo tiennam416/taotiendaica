@@ -1153,9 +1153,7 @@ task.spawn(function()
         task.wait(300)
 
         if antiAfkEnabled then            
-            VirtualUser:Button2Down(Vector2.new(), workspace.CurrentCamera.CFrame)
-            task.wait(0.1)
-            VirtualUser:Button2Up(Vector2.new(), workspace.CurrentCamera.CFrame)
+            clickScale(1, 1)
         end
     end
 end)
