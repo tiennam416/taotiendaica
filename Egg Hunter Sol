@@ -807,9 +807,6 @@ plusBtn.MouseButton1Click:Connect(function()
     sellLimit += 1
     sellLimitLabel.Text = "Bán khi có: " .. sellLimit .. " cá"
 end)
-
--- ================== EGG TOGGLE (giữ nguyên) ==================
-
 -- =============================================
 -- =============== EGG HUNTER LOGIC ===============
 -- =============================================
@@ -1077,6 +1074,68 @@ task.spawn(function()
         task.wait(0.7)
     end
 end)
+
+-- ================= CAMERA SYSTEM =================
+local camera = workspace.CurrentCamera
+local runService = game:GetService("RunService")
+
+local eggCamEnabled = false
+
+local currentZoom = 50
+local targetZoom = 50
+local minZoom = 20
+local maxZoom = 80
+
+local tiltFactor = 0.4
+local currentCFrame = camera.CFrame
+
+-- FOLLOW
+runService.RenderStepped:Connect(function()
+	if not eggCamEnabled then return end
+	if not hrp then return end
+
+	currentZoom = currentZoom + (targetZoom - currentZoom) * 0.1
+	
+	local offset = Vector3.new(0, currentZoom, currentZoom * tiltFactor)
+
+	local target = CFrame.new(
+		hrp.Position + offset,
+		hrp.Position
+	)
+
+	currentCFrame = currentCFrame:Lerp(target, 0.15)
+
+	camera.CameraType = Enum.CameraType.Scriptable
+	camera.CFrame = currentCFrame
+end)
+
+-- PC SCROLL
+UserInputService.InputChanged:Connect(function(input, gpe)
+	if gpe then return end
+	
+	if input.UserInputType == Enum.UserInputType.MouseWheel then
+		targetZoom = targetZoom - input.Position.Z * 5
+		targetZoom = math.clamp(targetZoom, minZoom, maxZoom)
+	end
+end)
+
+-- MOBILE PINCH
+UserInputService.TouchPinch:Connect(function(_, scale, _, state)
+	if state == Enum.UserInputState.Change then
+		targetZoom = targetZoom - (scale - 1) * 50
+		targetZoom = math.clamp(targetZoom, minZoom, maxZoom)
+	end
+end)
+
+local camToggle = createToggle(EggFrame, "CAMERA LIÊN QUÂN", 0.58, function(state)
+    eggCamEnabled = state
+
+    if state then
+        camera.CameraType = Enum.CameraType.Scriptable
+    else
+        camera.CameraType = Enum.CameraType.Custom
+    end
+end, false)
 
 local autoEggToggle = createToggle(EggFrame, "AUTO EGG HUNTER", 0.22, function(state)
     autoEggEnabled = state
