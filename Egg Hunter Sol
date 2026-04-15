@@ -1022,11 +1022,11 @@ findBestEgg = function()
 end
 local  eggCollected = 0
 local function triggerProximityPrompt(egg)
-    local prompt = egg:FindFirstChildOfClass("ProximityPrompt") or egg:FindFirstChild("ProximityPrompt", true)
+    local prompt = egg:FindFirstChildOfClass("ProximityPrompt") 
+        or egg:FindFirstChild("ProximityPrompt", true)
+
     if prompt then
-        prompt:InputHoldBegin()
-        task.wait(0.12)
-        prompt:InputHoldEnd()
+        fireproximityprompt(prompt)
 
         -- 🥚 TĂNG COUNT
         eggCollected += 1
