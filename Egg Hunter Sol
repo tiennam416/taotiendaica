@@ -758,7 +758,6 @@ local autoFishToggle = createToggle(FishFrame, "AUTO FISH", 0.4, function(state)
         print("❌ AUTO FISH: TẮT")
     end
 end)
-
 -- Label
 local sellLimitLabel = Instance.new("TextLabel")
 sellLimitLabel.Size = UDim2.new(0.5, 0, 0.1, 0)
@@ -806,6 +805,96 @@ end)
 plusBtn.MouseButton1Click:Connect(function()
     sellLimit += 1
     sellLimitLabel.Text = "Bán khi có: " .. sellLimit .. " cá"
+end)
+
+--===============AUTO SPECIAL EGG TRONG FISH=====================--
+
+local autoSpecialEgg = false
+
+createToggle(FishFrame, "AUTO SPECIAL EGG", 0.52, function(state)
+    autoSpecialEgg = state
+end)
+
+local function findSpecialEgg()
+    for _, v in pairs(workspace:GetChildren()) do
+        if isEgg(v) then
+            local nameLower = string.lower(v.Name)
+
+            -- ❗ chỉ lấy SPECIAL (không phải point/potion)
+            if not string.find(nameLower, "point") 
+            and not string.find(nameLower, "potion") then
+                
+                local pos = getEggPosition(v)
+                if pos and not isInForbiddenZone(pos) then
+                    return v
+                end
+            end
+        end
+    end
+    return nil
+end
+
+task.spawn(function()
+    while true do
+        task.wait(1)
+
+        if not autoFishEnabled or not autoSpecialEgg or selling then
+            continue
+        end
+
+        local egg = findSpecialEgg()
+        if not egg then continue end
+
+        local pos = getEggPosition(egg)
+        if not pos then continue end
+
+        local distance = (hrp.Position - pos).Magnitude
+
+        -- ❗ nếu gần rồi thì ăn luôn, khỏi reset
+        if distance <= 10 then
+            triggerProximityPrompt(egg)
+            continue
+        end
+
+        StatusLabel.Text = "Status: Special Egg Found!"
+
+        -- ❗ tắt fish tạm
+        autoFishEnabled = false
+
+        -- ❗ reset để đi nhanh hơn (anti kẹt)
+        if humanoid and humanoid.Health > 0 then
+            humanoid.Health = 0
+        end
+
+        -- ❗ đợi respawn ổn định (không cần khai báo lại biến)
+        repeat task.wait() until player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+
+        task.wait(0.3)
+
+        startObstacleJump()
+
+        smartMoveTo(pos)
+
+        local startTime = tick()
+
+        repeat
+            task.wait(0.2)
+        until not egg
+            or not egg.Parent
+            or (hrp.Position - pos).Magnitude <= 8
+            or tick() - startTime > 6
+
+        if egg and egg.Parent and (hrp.Position - pos).Magnitude <= 10 then
+            triggerProximityPrompt(egg)
+        end
+
+        -- 🔁 quay lại câu cá
+        StatusLabel.Text = "Status: Returning to fishing..."
+        task.wait(0.5)
+
+        autoFishEnabled = true
+        smartMoveTo(FISH_POS)
+    end
 end)
 -- =============================================
 -- =============== EGG HUNTER LOGIC ===============
@@ -893,7 +982,7 @@ local function getEggInfo(egg)
         displayName = "Potion Egg"
         emoji = "🧪"
         color = Color3.fromRGB(0, 255, 180)
-    elseif string.find(nameLower, "special") or string.find(nameLower, "rainbow") then
+    elseif not string.find(nameLower, "point") and not string.find(nameLower, "potion") then
         displayName = "Special Egg"
         emoji = "🌈"
         color = Color3.fromRGB(255, 100, 255)
