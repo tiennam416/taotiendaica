@@ -313,7 +313,7 @@ Instance.new("UICorner", FishCounterLabel).CornerRadius = UDim.new(0,10)
 
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0.4, 0, 0.07, 0)
-StatusLabel.Position = UDim2.new(0.25, 0, 0.25, 0)
+StatusLabel.Position = UDim2.new(0.25, 0, 0.17, 0)
 StatusLabel.BackgroundTransparency = 1
 StatusLabel.Text = "Status: Idle"
 StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 200)
@@ -357,7 +357,11 @@ local fishCount = 0
 local sellLimit = 10
 local selling = false
 
-local FISH_POS = Vector3.new(62.35, 100, -299)
+local FISH_SPOTS = {
+    Vector3.new(62.35, 100, -299),
+    Vector3.new(45.5, 99, -264),
+    Vector3.new(61.94, 99, -240.5)
+}
 local SHOP_POS = Vector3.new(98, 107.5, -296.17)
 
 local obstacleConnection = nil
@@ -632,6 +636,51 @@ local function clickScale(px, py)
     vim:SendMouseButtonEvent(x, y, 0, false, game, 0)
 end
 
+----- them cho cau ca----------------
+
+local function isSpotFree(pos, radius)
+    radius = radius or 10
+
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local otherPos = plr.Character.HumanoidRootPart.Position
+            if (otherPos - pos).Magnitude <= radius then
+                return false
+            end
+        end
+    end
+
+    return true
+end
+
+local function getBestFishSpot()
+    local closest = nil
+    local dist = math.huge
+
+    for _, pos in ipairs(FISH_SPOTS) do
+        if isSpotFree(pos, 10) then
+            local d = (hrp.Position - pos).Magnitude
+            if d < dist then
+                dist = d
+                closest = pos
+            end
+        end
+    end
+
+    -- ❗ nếu tất cả đều bị chiếm → chọn đại 1 cái gần nhất
+    if not closest then
+        for _, pos in ipairs(FISH_SPOTS) do
+            local d = (hrp.Position - pos).Magnitude
+            if d < dist then
+                dist = d
+                closest = pos
+            end
+        end
+    end
+
+    return closest
+end
+
 local function openShop()
     if selling then return end
     selling = true
@@ -644,14 +693,13 @@ local function openShop()
     if shopfish then shopfish.Visible = true end
     task.wait(1.5)
     
-    for i = 1, fishCount do
-        task.wait(0.2)
+    for i = 1, math.floor(fishCount/1.2) do
+        task.wait(0.5)
         clickScale(833, 430)
-        task.wait(0.3)
+        task.wait(0.4)
         clickScale(676, 809)
-        task.wait(0.3)
-        clickScale(825, 630)
-        task.wait(0.3)
+        task.wait(0.4)
+        clickScale(825, 630)        
         
     end
     
@@ -660,7 +708,10 @@ local function openShop()
     if shopfish then shopfish.Visible = false end
     
     StatusLabel.Text = "Status: Returning to spot..."
-    smartMoveTo(FISH_POS)
+    local spot = getBestFishSpot()
+    if spot then
+        smartMoveTo(spot)
+    end
     selling = false
 end
 
@@ -739,7 +790,7 @@ task.spawn(function()
 end)
 
 -- ================== TOGGLES ==================
-local autoFishToggle = createToggle(FishFrame, "AUTO FISH", 0.4, function(state)
+local autoFishToggle = createToggle(FishFrame, "AUTO FISH", 0.25, function(state)
     autoFishEnabled = state
     
     if state then
@@ -749,7 +800,10 @@ local autoFishToggle = createToggle(FishFrame, "AUTO FISH", 0.4, function(state)
         startObstacleJump()
         StatusLabel.Text = "Status: Starting..."
 		workspace.Map.Miscs.FishShop.NPC.ProximityPrompt.Enabled = false
-        smartMoveTo(FISH_POS)
+        local spot = getBestFishSpot()
+        if spot then
+            smartMoveTo(spot)
+        end
         print("✅ AUTO FISH: BẬT")
     else
         stopObstacleJump()
@@ -761,7 +815,7 @@ end)
 -- Label
 local sellLimitLabel = Instance.new("TextLabel")
 sellLimitLabel.Size = UDim2.new(0.5, 0, 0.1, 0)
-sellLimitLabel.Position = UDim2.new(0.0, 0, 0.61, 0)
+sellLimitLabel.Position = UDim2.new(0.0, 0, 0.41, 0)
 sellLimitLabel.BackgroundTransparency = 1
 sellLimitLabel.Text = "Bán khi có: " .. sellLimit .. " cá"
 sellLimitLabel.TextColor3 = Color3.new(1,1,1)
@@ -773,7 +827,7 @@ sellLimitLabel.Parent = FishFrame
 -- Nút +
 local plusBtn = Instance.new("TextButton")
 plusBtn.Size = UDim2.new(0.15, 0, 0.12, 0)
-plusBtn.Position = UDim2.new(0.55, 0, 0.6, 0)
+plusBtn.Position = UDim2.new(0.51, 0, 0.4, 0)
 plusBtn.BackgroundColor3 = Color3.fromRGB(40,40,55)
 plusBtn.Text = "+"
 plusBtn.TextScaled = false
@@ -786,7 +840,7 @@ Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(0,8)
 -- Nút -
 local minusBtn = Instance.new("TextButton")
 minusBtn.Size = UDim2.new(0.15, 0, 0.12, 0)
-minusBtn.Position = UDim2.new(0.72, 0, 0.6, 0)
+minusBtn.Position = UDim2.new(0.68, 0, 0.4, 0)
 minusBtn.BackgroundColor3 = Color3.fromRGB(40,40,55)
 minusBtn.Text = "-"
 minusBtn.TextScaled = false
@@ -809,9 +863,24 @@ end)
 
 --===============AUTO SPECIAL EGG TRONG FISH=====================--
 
+local function isEgg(v)
+    if not v or not v.Parent then return false end
+    if not (v:IsA("BasePart") or v:IsA("Model")) then return false end
+    
+    local nameLower = string.lower(v.Name)
+    if not string.find(nameLower, "egg") then return false end
+
+    local prompt = v:FindFirstChildOfClass("ProximityPrompt") 
+        or v:FindFirstChild("ProximityPrompt", true)
+
+    if not prompt or not prompt.Enabled then return false end
+
+    return true
+end
+
 local autoSpecialEgg = false
 
-createToggle(FishFrame, "AUTO SPECIAL EGG", 0.52, function(state)
+createToggle(FishFrame, "AUTO SPECIAL EGG && POTION EGG", 0.55, function(state)
     autoSpecialEgg = state
 end)
 
@@ -821,8 +890,7 @@ local function findSpecialEgg()
             local nameLower = string.lower(v.Name)
 
             -- ❗ chỉ lấy SPECIAL (không phải point/potion)
-            if not string.find(nameLower, "point") 
-            and not string.find(nameLower, "potion") then
+            if not string.find(nameLower, "point") then          
                 
                 local pos = getEggPosition(v)
                 if pos and not isInForbiddenZone(pos) then
@@ -893,7 +961,10 @@ task.spawn(function()
         task.wait(0.5)
 
         autoFishEnabled = true
-        smartMoveTo(FISH_POS)
+        local spot = getBestFishSpot()
+        if spot then
+            smartMoveTo(spot)
+        end
     end
 end)
 -- =============================================
@@ -920,21 +991,6 @@ Instance.new("UICorner", eggCounterLabel).CornerRadius = UDim.new(0,10)
 -- ==================== ESP ====================
 local espEnabled = false
 local eggHighlights = {}  -- Để quản lý và dọn dẹp dễ dàng
-
-local function isEgg(v)
-    if not v or not v.Parent then return false end
-    if not (v:IsA("BasePart") or v:IsA("Model")) then return false end
-    
-    local nameLower = string.lower(v.Name)
-    if not string.find(nameLower, "egg") then return false end
-
-    local prompt = v:FindFirstChildOfClass("ProximityPrompt") 
-        or v:FindFirstChild("ProximityPrompt", true)
-
-    if not prompt or not prompt.Enabled then return false end
-
-    return true
-end
 
 getEggPosition = function(egg)
     if egg:IsA("MeshPart") or egg:IsA("Part") then
@@ -1164,6 +1220,30 @@ task.spawn(function()
     end
 end)
 
+local autoEggToggle = createToggle(EggFrame, "AUTO EGG HUNTER", 0.22, function(state)
+    autoEggEnabled = state
+    
+    if state then
+        -- ❗ tắt fish khi bật egg
+        autoFishEnabled = false
+        
+        startObstacleJump()
+        print("✅ AUTO EGG HUNTER: BẬT")
+    else
+        stopObstacleJump()
+        print("❌ AUTO EGG HUNTER: TẮT")
+    end
+end)
+
+local espToggle = createToggle(EggFrame, "ESP TRỨNG", 0.4, function(state)
+    espEnabled = state
+    if not espEnabled then clearESP() end
+    print(espEnabled and "🟡 ESP TRỨNG: BẬT" or "⚫ ESP TRỨNG: TẮT")
+end)
+
+
+-------------------------MISC--------------------------------------
+
 -- ================= CAMERA SYSTEM =================
 local camera = workspace.CurrentCamera
 local runService = game:GetService("RunService")
@@ -1216,7 +1296,7 @@ UserInputService.TouchPinch:Connect(function(_, scale, _, state)
 	end
 end)
 
-local camToggle = createToggle(EggFrame, "CAMERA LIÊN QUÂN", 0.58, function(state)
+local camToggle = createToggle(MiscFrame, "CAMERA LIÊN QUÂN", 0.6, function(state)
     eggCamEnabled = state
 
     if state then
@@ -1226,29 +1306,6 @@ local camToggle = createToggle(EggFrame, "CAMERA LIÊN QUÂN", 0.58, function(st
     end
 end, false)
 
-local autoEggToggle = createToggle(EggFrame, "AUTO EGG HUNTER", 0.22, function(state)
-    autoEggEnabled = state
-    
-    if state then
-        -- ❗ tắt fish khi bật egg
-        autoFishEnabled = false
-        
-        startObstacleJump()
-        print("✅ AUTO EGG HUNTER: BẬT")
-    else
-        stopObstacleJump()
-        print("❌ AUTO EGG HUNTER: TẮT")
-    end
-end)
-
-local espToggle = createToggle(EggFrame, "ESP TRỨNG", 0.4, function(state)
-    espEnabled = state
-    if not espEnabled then clearESP() end
-    print(espEnabled and "🟡 ESP TRỨNG: BẬT" or "⚫ ESP TRỨNG: TẮT")
-end)
-
-
--------------------------MISC--------------------------------------
 -- Toggle
 local pathduongdi = createToggle(MiscFrame, "HIỆN ĐƯỜNG ĐI", 0.0185, function(state)
     showPathEnabled = state
@@ -1395,7 +1452,10 @@ local function setupCharacter(char)
         if autoFishEnabled then
             StatusLabel.Text = "Status: Resume Fishing..."
             startObstacleJump()
-            smartMoveTo(FISH_POS)
+            local spot = getBestFishSpot()
+            if spot then
+                smartMoveTo(spot)
+            end
 
         elseif autoEggEnabled then
             StatusLabel.Text = "Status: Resume Egg Hunt..."
