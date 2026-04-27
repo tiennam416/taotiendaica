@@ -865,6 +865,30 @@ end)
 
 --===============AUTO SPECIAL EGG TRONG FISH=====================--
 
+local forbiddenZones = {
+    {minX = -150, maxX = 20,   minZ = -170, maxZ = -70},
+    {minX = 545,  maxX = 597,  minZ = -289.22, maxZ = -107.83},
+    {minX = 538,  maxX = 545,  minZ = -276.63, maxZ = -128.81},
+    {minX = 526.75,  maxX = 538,  minZ = -272.51, maxZ = -152.52},
+    {minX = 521.85,  maxX = 526.75,  minZ = -221.82, maxZ = -185.83},
+    {minX = 597, maxX = 670, minZ = -316.47, maxZ = -100}
+}
+
+local eggCounterLabel = Instance.new("TextButton")
+eggCounterLabel.Size = UDim2.new(0.8, 0, 0.12, 0)
+eggCounterLabel.Position = UDim2.new(0.05, 0, 0.05, 0)
+eggCounterLabel.BackgroundColor3 = Color3.fromRGB(40,40,55)
+eggCounterLabel.Text = "🥚 EGGS: 0"
+eggCounterLabel.TextScaled = false
+autoText(eggCounterLabel, 16, 24)
+eggCounterLabel.Font = Enum.Font.GothamSemibold
+eggCounterLabel.TextColor3 = Color3.new(1,1,1)
+eggCounterLabel.BackgroundTransparency = 0.5
+eggCounterLabel.AutoButtonColor = false
+eggCounterLabel.Parent = EggFrame
+
+Instance.new("UICorner", eggCounterLabel).CornerRadius = UDim.new(0,10)
+
 local function isEgg(v)
     if not v or not v.Parent then return false end
     if not (v:IsA("BasePart") or v:IsA("Model")) then return false end
@@ -885,6 +909,44 @@ local autoSpecialEgg = false
 createToggle(FishFrame, "AUTO SPECIAL EGG && POTION EGG", 0.55, function(state)
     autoSpecialEgg = state
 end)
+
+-- Định nghĩa getEggPosition
+getEggPosition = function(egg)
+    if egg:IsA("MeshPart") or egg:IsA("Part") then
+        return egg.Position
+    end
+    
+    if egg:IsA("Model") then
+        local root = egg:FindFirstChild("HumanoidRootPart") 
+                  or egg:FindFirstChildWhichIsA("BasePart")
+        return root and root.Position or egg:GetPivot().Position
+    end
+    return egg.Position
+end
+-- Định nghĩa isInForbiddenZone
+local function isInForbiddenZone(pos)
+    for _, zone in ipairs(forbiddenZones) do
+        if pos.X >= zone.minX and pos.X <= zone.maxX and pos.Z >= zone.minZ and pos.Z <= zone.maxZ then
+            return true
+        end
+    end
+    return false
+end
+
+
+-- Định nghĩa triggerProximityPrompt
+local function triggerProximityPrompt(egg)
+    local prompt = egg:FindFirstChildOfClass("ProximityPrompt") 
+        or egg:FindFirstChild("ProximityPrompt", true)
+
+    if prompt then
+        fireproximityprompt(prompt)
+
+        -- 🥚 TĂNG COUNT
+        eggCollected += 1
+        eggCounterLabel.Text = "🥚 Eggs Collected: "..eggCollected
+    end
+end
 
 local function findSpecialEgg()
     for _, v in pairs(workspace:GetChildren()) do
@@ -912,6 +974,16 @@ task.spawn(function()
             continue
         end
 
+        local character = player.Character
+        if not character then continue end
+
+        local humanoid = character:FindFirstChild("Humanoid")
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+
+        if not humanoid or not hrp or humanoid.Health <= 0 then
+            continue
+        end
+
         local egg = findSpecialEgg()
         if not egg then continue end
 
@@ -920,7 +992,7 @@ task.spawn(function()
 
         local distance = (hrp.Position - pos).Magnitude
 
-        -- ❗ nếu gần rồi thì ăn luôn, khỏi reset
+        -- 🥚 GẦN → ĂN NGAY
         if distance <= 10 then
             triggerProximityPrompt(egg)
             continue
@@ -928,41 +1000,67 @@ task.spawn(function()
 
         StatusLabel.Text = "Status: Special Egg Found!"
 
-        -- ❗ tắt fish tạm
+        -- 🔒 lock fish
         autoFishEnabled = false
 
-        -- ❗ reset để đi nhanh hơn (anti kẹt)
-        if humanoid and humanoid.Health > 0 then
-            humanoid.Health = 0
-        end
+        -- 💀 RESET
+        humanoid.Health = 0
 
-        -- ❗ đợi respawn ổn định (không cần khai báo lại biến)
+        -- ⏳ ĐỢI RESPAWN + UPDATE BIẾN
         repeat task.wait() until player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 
-        task.wait(0.3)
+        character = player.Character
+        humanoid = character:WaitForChild("Humanoid")
+        hrp = character:WaitForChild("HumanoidRootPart")
+
+        task.wait(0.8)
 
         startObstacleJump()
 
-        smartMoveTo(pos)
+        -- 🚶 MOVE + RETRY
+        local success = false
 
-        local startTime = tick()
+        for i = 1, 3 do
+            smartMoveTo(pos)
 
-        repeat
-            task.wait(0.2)
-        until not egg
-            or not egg.Parent
-            or (hrp.Position - pos).Magnitude <= 8
-            or tick() - startTime > 6
+            local startTime = tick()
 
-        if egg and egg.Parent and (hrp.Position - pos).Magnitude <= 10 then
-            triggerProximityPrompt(egg)
+            repeat
+                task.wait(0.2)
+
+                if not character or not character.Parent then break end
+                if humanoid.Health <= 0 then break end
+
+                hrp = character:FindFirstChild("HumanoidRootPart")
+                if not hrp then break end
+
+                local dist = (hrp.Position - pos).Magnitude
+
+                if dist <= 8 then
+                    success = true
+                    break
+                end
+
+            until tick() - startTime > 10
+
+            if success then break end
         end
 
-        -- 🔁 quay lại câu cá
+        -- 🥚 THỬ ĂN
+        hrp = character:FindFirstChild("HumanoidRootPart")
+
+        if egg and egg.Parent and hrp then
+            if (hrp.Position - pos).Magnitude <= 10 then
+                triggerProximityPrompt(egg)
+            end
+        end
+
+        -- 🔁 BACK TO FISH
         StatusLabel.Text = "Status: Returning to fishing..."
         task.wait(0.5)
 
         autoFishEnabled = true
+
         local spot = getBestFishSpot()
         if spot then
             smartMoveTo(spot)
@@ -973,58 +1071,11 @@ end)
 -- =============== EGG HUNTER LOGIC ===============
 -- =============================================
 
-local eggCounterLabel = Instance.new("TextButton")
-eggCounterLabel.Size = UDim2.new(0.8, 0, 0.12, 0)
-eggCounterLabel.Position = UDim2.new(0.05, 0, 0.05, 0)
-eggCounterLabel.BackgroundColor3 = Color3.fromRGB(40,40,55)
-eggCounterLabel.Text = "🥚 EGGS: 0"
-eggCounterLabel.TextScaled = false
-autoText(eggCounterLabel, 16, 24)
-eggCounterLabel.Font = Enum.Font.GothamSemibold
-eggCounterLabel.TextColor3 = Color3.new(1,1,1)
-eggCounterLabel.BackgroundTransparency = 0.5
-eggCounterLabel.AutoButtonColor = false
-eggCounterLabel.Parent = EggFrame
-
-Instance.new("UICorner", eggCounterLabel).CornerRadius = UDim.new(0,10)
-
 --------------------------------------------------------
 
 -- ==================== ESP ====================
 local espEnabled = false
 local eggHighlights = {}  -- Để quản lý và dọn dẹp dễ dàng
-
-getEggPosition = function(egg)
-    if egg:IsA("MeshPart") or egg:IsA("Part") then
-        return egg.Position
-    end
-    
-    if egg:IsA("Model") then
-        local root = egg:FindFirstChild("HumanoidRootPart") 
-                  or egg:FindFirstChildWhichIsA("BasePart")
-        return root and root.Position or egg:GetPivot().Position
-    end
-    return egg.Position
-end
-
-local forbiddenZones = {
-    {minX = -150, maxX = 20,   minZ = -170, maxZ = -70},
-    {minX = 545,  maxX = 597,  minZ = -289.22, maxZ = -107.83},
-    {minX = 538,  maxX = 545,  minZ = -276.63, maxZ = -128.81},
-    {minX = 526.75,  maxX = 538,  minZ = -272.51, maxZ = -152.52},
-    {minX = 521.85,  maxX = 526.75,  minZ = -221.82, maxZ = -185.83},
-    {minX = 597, maxX = 670, minZ = -316.47, maxZ = -100}
-}
-
-local function isInForbiddenZone(pos)
-    for _, zone in ipairs(forbiddenZones) do
-        if pos.X >= zone.minX and pos.X <= zone.maxX and pos.Z >= zone.minZ and pos.Z <= zone.maxZ then
-            return true
-        end
-    end
-    return false
-end
-
 local function getEggInfo(egg)
     local nameLower = string.lower(egg.Name)
     local displayName = "Egg"
@@ -1168,18 +1219,6 @@ findBestEgg = function()
     return closest
 end
 local  eggCollected = 0
-local function triggerProximityPrompt(egg)
-    local prompt = egg:FindFirstChildOfClass("ProximityPrompt") 
-        or egg:FindFirstChild("ProximityPrompt", true)
-
-    if prompt then
-        fireproximityprompt(prompt)
-
-        -- 🥚 TĂNG COUNT
-        eggCollected += 1
-        eggCounterLabel.Text = "🥚 Eggs Collected: "..eggCollected
-    end
-end
 
 local isMovingToEgg = false
 
