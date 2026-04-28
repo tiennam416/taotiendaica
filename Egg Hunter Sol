@@ -873,7 +873,7 @@ local forbiddenZones = {
     {minX = 521.85,  maxX = 526.75,  minZ = -221.82, maxZ = -185.83},
     {minX = 597, maxX = 670, minZ = -316.47, maxZ = -100}
 }
-
+local eggCollected = 0  -- ✅ THÊM DÒNG NÀY
 local eggCounterLabel = Instance.new("TextButton")
 eggCounterLabel.Size = UDim2.new(0.8, 0, 0.12, 0)
 eggCounterLabel.Position = UDim2.new(0.05, 0, 0.05, 0)
