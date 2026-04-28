@@ -362,7 +362,7 @@ local FISH_SPOTS = {
     Vector3.new(45.5, 99, -264),
     Vector3.new(61.94, 99, -240.5)
 }
-local SHOP_POS = Vector3.new(98, 107.5, -296.17)
+local SHOP_POS = Vector3.new(94, 107.5, -296.17)
 
 local obstacleConnection = nil
 local lastJump = 0
