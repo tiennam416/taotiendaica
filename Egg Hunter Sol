@@ -970,7 +970,7 @@ task.spawn(function()
     while true do
         task.wait(1)
 
-        if not autoFishEnabled or not autoSpecialEgg or selling then
+        if not autoSpecialEgg or selling then
             continue
         end
 
