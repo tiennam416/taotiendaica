@@ -1,0 +1,5 @@
+// declaration for eggCollected variable
+int eggCollected;
+
+// ... existing code after forbiddenZones definition
+// existing code for eggCounterLabel creation
