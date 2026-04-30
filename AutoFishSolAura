@@ -301,10 +301,10 @@ local function checkFish()
     local size = status.Size
     local currentState = nil
 
-    if math.abs(size.X.Scale - 0.14) < 0.02 then
+    if math.abs(size.X.Scale - 0.14) < 0.02 and math.abs(status.BackgroundTransparency - 0.4) < 0.05 then
         fishBiting = true
         currentState = "BITING"
-    elseif math.abs(size.X.Scale - 0.185) < 0.02 then
+    elseif math.abs(size.X.Scale - 0.185) < 0.02 and math.abs(status.BackgroundTransparency - 0.4) < 0.05 then
         fishBiting = false
         currentState = "IDLE"
     end
