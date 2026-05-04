@@ -271,7 +271,7 @@ local function openShop()
     if shopfish then shopfish.Visible = true end
     task.wait(1)
 
-    for i = 1, fishCount do
+    for i = 1, math.floor(fishCount/1.2) do
         clickScale(833, 430)
         task.wait(0.2)
         clickScale(676, 809)
