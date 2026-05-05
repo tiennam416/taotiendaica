@@ -158,7 +158,7 @@ task.spawn(function()
         if autoTP then
             local char = player.Character
             if char and char:FindFirstChild("HumanoidRootPart") then
-                char.HumanoidRootPart.CFrame = CFrame.new(4288.21, 6.59, 25.79)
+                char.HumanoidRootPart.CFrame = CFrame.new(935.701477, 223.838058, 700)
             end
         end
     end
