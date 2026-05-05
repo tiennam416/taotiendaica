@@ -158,7 +158,8 @@ task.spawn(function()
         if autoTP then
             local char = player.Character
             if char and char:FindFirstChild("HumanoidRootPart") then
-                char.HumanoidRootPart.CFrame = CFrame.new(935.701477, 223.838058, 700)
+                char.HumanoidRootPart.CFrame = CFrame.new(936, 220.838058, 700)                
+                
             end
         end
     end
@@ -174,4 +175,3 @@ task.wait(1)
 VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
 end
 end)
-
