@@ -1,0 +1,165 @@
+--// SERVICES
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+
+--// REMOTES
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local GainHP = Remotes:WaitForChild("Gain Hp From Tredmill")
+local MHP = Remotes:WaitForChild("MHP")
+
+--// STATE
+local autoHP = false
+local autoMHP = false
+local autoTP = false
+
+--// GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "MHP_Menu"
+gui.Parent = CoreGui
+
+-- MAIN FRAME
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 230, 0, 210)
+frame.Position = UDim2.new(0, 40, 0, 150)
+frame.BackgroundColor3 = Color3.fromRGB(28,28,28)
+frame.BorderSizePixel = 0
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,10)
+
+-- TOP BAR
+local top = Instance.new("Frame", frame)
+top.Size = UDim2.new(1,0,0,35)
+top.BackgroundColor3 = Color3.fromRGB(18,18,18)
+top.BorderSizePixel = 0
+Instance.new("UICorner", top).CornerRadius = UDim.new(0,10)
+
+-- TITLE
+local title = Instance.new("TextLabel", top)
+title.Size = UDim2.new(1,-70,1,0)
+title.Position = UDim2.new(0,10,0,0)
+title.Text = "MHP PANEL"
+title.TextColor3 = Color3.new(1,1,1)
+title.BackgroundTransparency = 1
+title.TextScaled = true
+title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- CLOSE BUTTON
+local close = Instance.new("TextButton", top)
+close.Size = UDim2.new(0,35,1,0)
+close.Position = UDim2.new(1,-35,0,0)
+close.Text = "X"
+close.BackgroundColor3 = Color3.fromRGB(170,50,50)
+close.TextColor3 = Color3.new(1,1,1)
+
+close.MouseButton1Click:Connect(function()
+    gui:Destroy()
+end)
+
+-- DRAG SYSTEM
+local dragging, dragStart, startPos
+
+top.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+-- BUTTON CREATOR
+local function createButton(name, y)
+    local btn = Instance.new("TextButton", frame)
+    btn.Size = UDim2.new(1,-20,0,40)
+    btn.Position = UDim2.new(0,10,0,y)
+    btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.TextScaled = true
+    btn.Text = name .. ": OFF"
+
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
+    return btn
+end
+
+local function updateButton(btn, state, name)
+    btn.Text = name .. ": " .. (state and "ON" or "OFF")
+    btn.BackgroundColor3 = state and Color3.fromRGB(60,170,90) or Color3.fromRGB(170,60,60)
+end
+
+-- BUTTONS
+local btnHP = createButton("Auto HP", 50)
+local btnMHP = createButton("Auto MHP", 100)
+local btnTP = createButton("Auto TP", 150)
+
+btnHP.MouseButton1Click:Connect(function()
+    autoHP = not autoHP
+    updateButton(btnHP, autoHP, "Auto HP")
+end)
+
+btnMHP.MouseButton1Click:Connect(function()
+    autoMHP = not autoMHP
+    updateButton(btnMHP, autoMHP, "Auto MHP")
+end)
+
+btnTP.MouseButton1Click:Connect(function()
+    autoTP = not autoTP
+    updateButton(btnTP, autoTP, "Auto TP")
+end)
+
+-- TOGGLE GUI (RightShift)
+UIS.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.RightShift then
+        gui.Enabled = not gui.Enabled
+    end
+end)
+
+
+-- LOOP HP + MHP
+task.spawn(function()
+    while task.wait(0.05) do
+        local char = player.Character
+
+        if autoHP then
+            local train = workspace:FindFirstChild("Train Area")
+            if train and train:FindFirstChild("Rebirth") then
+                GainHP:FireServer(train.Rebirth)
+            end
+        end
+
+        if autoMHP then
+            MHP:FireServer()
+        end
+    end
+end)
+
+-- LOOP TP RIÊNG
+task.spawn(function()
+    while task.wait(0.2) do
+        if autoTP then
+            local char = player.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                char.HumanoidRootPart.CFrame = CFrame.new(4288.21, 6.59, 25.79)
+            end
+        end
+    end
+end)
