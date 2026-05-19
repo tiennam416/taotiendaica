@@ -326,6 +326,9 @@ StatusLabel.Parent = FishFrame
 local autoEggEnabled = false
 local autoFishEnabled = false
 
+local autoSpecialPotionEgg = false
+local wasFishingBeforeEgg = false
+
 local findBestEgg
 local getEggPosition
 
@@ -550,7 +553,9 @@ end
 
     for _, wp in ipairs(waypoints) do
         if not character or humanoid.Health <= 0 then return end
-        if not (autoFishEnabled or autoEggEnabled) then return end
+        if not (autoFishEnabled or autoEggEnabled or autoSpecialPotionEgg) then
+    return
+end
 
         humanoid:MoveTo(wp.Position)
 
@@ -863,7 +868,9 @@ plusBtn.MouseButton1Click:Connect(function()
     sellLimitLabel.Text = "Bán khi có: " .. sellLimit .. " cá"
 end)
 
---===============AUTO SPECIAL EGG TRONG FISH=====================--
+-- =============================================
+-- =============== EGG HUNTER LOGIC ===============
+-- =============================================
 
 local forbiddenZones = {
     {minX = -150, maxX = 20,   minZ = -170, maxZ = -70},
@@ -904,12 +911,6 @@ local function isEgg(v)
     return true
 end
 
-local autoSpecialEgg = false
-
-createToggle(FishFrame, "AUTO SPECIAL EGG && POTION EGG", 0.55, function(state)
-    autoSpecialEgg = state
-end)
-
 -- Định nghĩa getEggPosition
 getEggPosition = function(egg)
     if egg:IsA("MeshPart") or egg:IsA("Part") then
@@ -947,132 +948,6 @@ local function triggerProximityPrompt(egg)
         eggCounterLabel.Text = "🥚 Eggs Collected: "..eggCollected
     end
 end
-
-local function findSpecialEgg()
-    for _, v in pairs(workspace:GetChildren()) do
-        if isEgg(v) then
-            local nameLower = string.lower(v.Name)
-
-            -- ❗ chỉ lấy SPECIAL (không phải point/potion)
-            if not string.find(nameLower, "point") then          
-                
-                local pos = getEggPosition(v)
-                if pos and not isInForbiddenZone(pos) then
-                    return v
-                end
-            end
-        end
-    end
-    return nil
-end
-
-task.spawn(function()
-    while true do
-        task.wait(1)
-
-        if not autoSpecialEgg or selling then
-            continue
-        end
-
-        local character = player.Character
-        if not character then continue end
-
-        local humanoid = character:FindFirstChild("Humanoid")
-        local hrp = character:FindFirstChild("HumanoidRootPart")
-
-        if not humanoid or not hrp or humanoid.Health <= 0 then
-            continue
-        end
-
-        local egg = findSpecialEgg()
-        if not egg then continue end
-
-        local pos = getEggPosition(egg)
-        if not pos then continue end
-
-        local distance = (hrp.Position - pos).Magnitude
-
-        -- 🥚 GẦN → ĂN NGAY
-        if distance <= 10 then
-            triggerProximityPrompt(egg)
-            continue
-        end
-
-        StatusLabel.Text = "Status: Special Egg Found!"
-
-        -- 🔒 lock fish
-        autoFishEnabled = false
-
-        -- 💀 RESET
-        humanoid.Health = 0
-
-        -- ⏳ ĐỢI RESPAWN + UPDATE BIẾN
-        repeat task.wait() until player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-
-        character = player.Character
-        humanoid = character:WaitForChild("Humanoid")
-        hrp = character:WaitForChild("HumanoidRootPart")
-
-        task.wait(0.8)
-
-        startObstacleJump()
-
-        -- 🚶 MOVE + RETRY
-        local success = false
-
-        for i = 1, 3 do
-            smartMoveTo(pos)
-
-            local startTime = tick()
-
-            repeat
-                task.wait(0.2)
-
-                if not character or not character.Parent then break end
-                if humanoid.Health <= 0 then break end
-
-                hrp = character:FindFirstChild("HumanoidRootPart")
-                if not hrp then break end
-
-                local dist = (hrp.Position - pos).Magnitude
-
-                if dist <= 8 then
-                    success = true
-                    break
-                end
-
-            until tick() - startTime > 10
-
-            if success then break end
-        end
-
-        -- 🥚 THỬ ĂN
-        hrp = character:FindFirstChild("HumanoidRootPart")
-
-        if egg and egg.Parent and hrp then
-            if (hrp.Position - pos).Magnitude <= 10 then
-                triggerProximityPrompt(egg)
-            end
-        end
-
-        -- 🔁 BACK TO FISH
-        StatusLabel.Text = "Status: Returning to fishing..."
-        task.wait(0.5)
-
-        autoFishEnabled = true
-
-        local spot = getBestFishSpot()
-        if spot then
-            smartMoveTo(spot)
-        end
-    end
-end)
--- =============================================
--- =============== EGG HUNTER LOGIC ===============
--- =============================================
-
---------------------------------------------------------
-
 -- ==================== ESP ====================
 local espEnabled = false
 local eggHighlights = {}  -- Để quản lý và dọn dẹp dễ dàng
@@ -1204,59 +1079,133 @@ end)
 -- ================== PATHFINDING & COLLECT ==================
 findBestEgg = function()
     local closest, dist = nil, math.huge
+
     for _, v in pairs(workspace:GetChildren()) do
         if isEgg(v) then
-            local pos = getEggPosition(v)
-            if pos and not isInForbiddenZone(pos) then
-                local d = (hrp.Position - pos).Magnitude
-                if d < dist then
-                    dist = d
-                    closest = v
+
+            local nameLower = string.lower(v.Name)
+
+            local isPotion = string.find(nameLower, "potion")
+            local isPoint = string.find(nameLower, "point")
+            local isSpecial = (not isPotion and not isPoint)
+
+            local allowed = false
+
+            -- AUTO ALL EGG
+            if autoEggEnabled then
+                allowed = true
+            end
+
+            -- AUTO SPECIAL + POTION
+            if autoSpecialPotionEgg and (isPotion or isSpecial) then
+                allowed = true
+            end
+
+            if allowed then
+                local pos = getEggPosition(v)
+
+                if pos and not isInForbiddenZone(pos) then
+                    local d = (hrp.Position - pos).Magnitude
+
+                    if d < dist then
+                        dist = d
+                        closest = v
+                    end
                 end
             end
         end
     end
+
     return closest
 end
+
+local function pauseFishingForEgg()
+    if autoFishEnabled then
+        wasFishingBeforeEgg = true
+        autoFishEnabled = false
+
+        stopObstacleJump()
+
+        StatusLabel.Text = "Status: Hunting Egg..."
+    end
+end
+
+local function resumeFishingAfterEgg()
+    if wasFishingBeforeEgg then
+        wasFishingBeforeEgg = false
+        autoFishEnabled = true
+
+        StatusLabel.Text = "Status: Resume Fishing..."
+
+        startObstacleJump()
+
+        local spot = getBestFishSpot()
+        if spot then
+            smartMoveTo(spot)
+        end
+    end
+end
+
 local  eggCollected = 0
 
 local isMovingToEgg = false
 
 local function goToBestEgg()
-    if not autoEggEnabled or isMovingToEgg then return end
-    
+    if isMovingToEgg then return end
+
     local egg = findBestEgg()
+
     if not egg then
-        StatusLabel.Text = "Status: No egg found..."
-        task.wait(1)
+        resumeFishingAfterEgg()
         return
     end
+
+    pauseFishingForEgg()
 
     local pos = getEggPosition(egg)
     if not pos then return end
 
     isMovingToEgg = true
 
-    local success = pcall(function()
+    pcall(function()
+
         if (hrp.Position - pos).Magnitude <= 8 then
             triggerProximityPrompt(egg)
-            task.wait(0.8)
+            task.wait(1)
         else
             smartMoveTo(pos)
+            task.wait(0.5)
+
+            if egg and egg.Parent then
+                triggerProximityPrompt(egg)
+            end
         end
     end)
 
-    -- ✅ ALWAYS RESET (quan trọng)
     isMovingToEgg = false
+
+    task.wait(1)
+
+    resumeFishingAfterEgg()
 end
 
 task.spawn(function()
     while true do
-        if not character or not character.Parent then continue end
-        if not humanoid or humanoid.Health <= 0 then continue end
-        if autoEggEnabled then
+        if not character or not character.Parent then
+            task.wait(0.5)
+            continue
+        end
+
+        if not humanoid or humanoid.Health <= 0 then
+            task.wait(0.5)
+            continue
+        end
+
+        -- FIX
+        if autoEggEnabled or autoSpecialPotionEgg then
             goToBestEgg()
         end
+
         task.wait(0.7)
     end
 end)
@@ -1280,6 +1229,13 @@ local espToggle = createToggle(EggFrame, "ESP TRỨNG", 0.4, function(state)
     espEnabled = state
     if not espEnabled then clearESP() end
     print(espEnabled and "🟡 ESP TRỨNG: BẬT" or "⚫ ESP TRỨNG: TẮT")
+end)
+
+createToggle(EggFrame, "AUTO SPECIAL/POTION", 0.58, function(state)
+    autoSpecialPotionEgg = state
+
+    print(state and "🌈🧪 AUTO SPECIAL/POTION: ON"
+        or "❌ AUTO SPECIAL/POTION: OFF")
 end)
 
 
