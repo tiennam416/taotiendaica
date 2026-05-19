@@ -1214,8 +1214,6 @@ local autoEggToggle = createToggle(EggFrame, "AUTO EGG HUNTER", 0.22, function(s
     autoEggEnabled = state
     
     if state then
-        -- ❗ tắt fish khi bật egg
-        autoFishEnabled = false
         
         startObstacleJump()
         print("✅ AUTO EGG HUNTER: BẬT")
