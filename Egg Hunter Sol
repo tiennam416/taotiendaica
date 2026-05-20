@@ -1122,9 +1122,7 @@ end
 local function pauseFishingForEgg()
     if autoFishEnabled then
         wasFishingBeforeEgg = true
-        autoFishEnabled = false
-
-        stopObstacleJump()
+        autoFishEnabled = false        
 
         StatusLabel.Text = "Status: Hunting Egg..."
     end
@@ -1135,9 +1133,7 @@ local function resumeFishingAfterEgg()
         wasFishingBeforeEgg = false
         autoFishEnabled = true
 
-        StatusLabel.Text = "Status: Resume Fishing..."
-
-        startObstacleJump()
+        StatusLabel.Text = "Status: Resume Fishing..."        
 
         local spot = getBestFishSpot()
         if spot then
@@ -1151,7 +1147,8 @@ local  eggCollected = 0
 local isMovingToEgg = false
 
 local function goToBestEgg()
-    if isMovingToEgg then return end
+    if fishBiting then return end
+    if isMovingToEgg then return end    
 
     local egg = findBestEgg()
 
@@ -1161,6 +1158,19 @@ local function goToBestEgg()
     end
 
     pauseFishingForEgg()
+
+    if startfishing and not startfishing.Visible and status then
+        repeat
+            if math.abs(status.BackgroundTransparency - 0.4) < 0.02 then
+                StatusLabel.Text = "Status: Casting..."
+                task.wait(0.4)
+                clickScale(852, 834)
+                task.wait(0.25)
+            end
+
+            task.wait(0.1)
+        until startfishing.Visible or fishBiting
+    end
 
     local pos = getEggPosition(egg)
     if not pos then return end
