@@ -1122,8 +1122,8 @@ end
 local function pauseFishingForEgg()
     if autoFishEnabled then
         wasFishingBeforeEgg = true
-        autoFishEnabled = false        
-		stopObstacleJump()
+        autoFishEnabled = false       
+		
         StatusLabel.Text = "Status: Hunting Egg..."
     end
 end
