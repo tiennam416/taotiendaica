@@ -1123,7 +1123,7 @@ local function pauseFishingForEgg()
     if autoFishEnabled then
         wasFishingBeforeEgg = true
         autoFishEnabled = false        
-
+		stopObstacleJump()
         StatusLabel.Text = "Status: Hunting Egg..."
     end
 end
@@ -1134,7 +1134,7 @@ local function resumeFishingAfterEgg()
         autoFishEnabled = true
 
         StatusLabel.Text = "Status: Resume Fishing..."        
-
+		startObstacleJump()
         local spot = getBestFishSpot()
         if spot then
             smartMoveTo(spot)
