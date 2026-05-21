@@ -381,7 +381,9 @@ local function startObstacleJump()
     obstacleConnection = nil
     end
     obstacleConnection = RunService.Heartbeat:Connect(function()
-        if not (autoFishEnabled or autoEggEnabled) then return end
+        if not autoFishEnabled and not autoEggEnabled and not autoSpecialPotionEgg then 
+            return 
+        end
 
         local character = player.Character
         if not character then return end
