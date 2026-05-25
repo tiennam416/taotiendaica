@@ -288,7 +288,7 @@ ToggleButton.MouseLeave:Connect(function()
 end)
 
 -- Toggle menu
-local menuVisible = true
+local menuVisible = false
 ToggleButton.MouseButton1Click:Connect(function()
     menuVisible = not menuVisible
     Main.Visible = menuVisible
