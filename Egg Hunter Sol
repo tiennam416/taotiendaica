@@ -289,7 +289,6 @@ end)
 
 -- Toggle menu
 local menuVisible = false
-Main.Visible = menuVisible
 ToggleButton.MouseButton1Click:Connect(function()
     menuVisible = not menuVisible
     Main.Visible = menuVisible
@@ -821,7 +820,7 @@ local autoFishToggle = createToggle(FishFrame, "AUTO FISH", 0.25, function(state
 		workspace.Map.Miscs.FishShop.NPC.ProximityPrompt.Enabled = true
         print("❌ AUTO FISH: TẮT")
     end
-end,true)
+end)
 -- Label
 local sellLimitLabel = Instance.new("TextLabel")
 sellLimitLabel.Size = UDim2.new(0.5, 0, 0.1, 0)
@@ -1247,7 +1246,7 @@ createToggle(EggFrame, "AUTO SPECIAL/POTION", 0.58, function(state)
 
     print(state and "🌈🧪 AUTO SPECIAL/POTION: ON"
         or "❌ AUTO SPECIAL/POTION: OFF")
-end,true)
+end)
 
 
 -------------------------MISC--------------------------------------
