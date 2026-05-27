@@ -690,6 +690,8 @@ end
 
 local function openShop()
     if selling then return end
+	autoEggEnabled = false
+	autoSpecialPotionEgg = false
     selling = true
     StatusLabel.Text = "Status: Going to shop..."
     
@@ -722,6 +724,8 @@ local function openShop()
         smartMoveTo(spot)
     end
     selling = false
+	autoEggEnabled = true
+	autoSpecialPotionEgg = true
 end
 
 local fishBiting = false
@@ -1144,13 +1148,12 @@ local function resumeFishingAfterEgg()
     end
 end
 
-local  eggCollected = 0
-
 local isMovingToEgg = false
 
 local function goToBestEgg()
     if fishBiting then return end
     if isMovingToEgg then return end    
+	if selling then return end
 
     local egg = findBestEgg()
 
