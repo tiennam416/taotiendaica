@@ -323,8 +323,8 @@ StatusLabel.Font = Enum.Font.GothamSemibold
 StatusLabel.Parent = FishFrame
 
 -- Variables
-local autoEggEnabled = false
-local autoFishEnabled = false
+local autoFishEnabled = _G.AutoFish or false
+local autoEggEnabled = _G.AutoEgg or false
 
 local autoSpecialPotionEgg = false
 local wasFishingBeforeEgg = false
@@ -359,6 +359,40 @@ applyNoPath(house, "House")
 local fishCount = 0
 local sellLimit = 10
 local selling = false
+
+local TeleportService = game:GetService("TeleportService")
+
+local lastFishCount = 0
+local lastProgress = tick()
+
+task.spawn(function()
+    while true do
+        task.wait(10)
+
+        if not autoFishEnabled then
+            lastFishCount = fishCount
+            lastProgress = tick()
+            continue
+        end
+
+        if selling or autoEggEnabled or autoSpecialPotionEgg then
+             lastProgress = tick()
+            continue
+        end
+
+        if fishCount ~= lastFishCount then
+            lastFishCount = fishCount
+            lastProgress = tick()
+        end
+
+        if tick() - lastProgress >= 5 then
+            StatusLabel.Text = "Status: Rejoining..."
+
+            TeleportService:Teleport(game.PlaceId, player)
+            break
+        end
+    end
+end)
 
 local FISH_SPOTS = {
     Vector3.new(62.35, 100, -299),
