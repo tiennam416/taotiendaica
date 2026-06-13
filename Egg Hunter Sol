@@ -385,7 +385,7 @@ task.spawn(function()
             lastProgress = tick()
         end
 
-        if tick() - lastProgress >= 5 then
+        if tick() - lastProgress >= 300 then
             StatusLabel.Text = "Status: Rejoining..."
 
             TeleportService:Teleport(game.PlaceId, player)
@@ -838,10 +838,10 @@ end)
 
 local function EnableAutoFish()
     autoFishEnabled = true
-
+    Main.Visible = false;
     startObstacleJump()
     StatusLabel.Text = "Status: Starting..."
-
+    
     local spot = getBestFishSpot()
     if spot then
         smartMoveTo(spot)
