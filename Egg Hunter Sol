@@ -835,6 +835,26 @@ task.spawn(function()
 end)
 
 -- ================== TOGGLES ==================
+
+local function EnableAutoFish()
+    autoFishEnabled = true
+
+    startObstacleJump()
+    StatusLabel.Text = "Status: Starting..."
+
+    local spot = getBestFishSpot()
+    if spot then
+        smartMoveTo(spot)
+    end
+end
+
+task.delay(5, function()
+    if _G.AutoFish then
+        EnableAutoFish()
+    end
+end)
+
+
 local autoFishToggle = createToggle(FishFrame, "AUTO FISH", 0.25, function(state)
     autoFishEnabled = state
     
