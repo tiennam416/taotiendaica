@@ -362,37 +362,39 @@ local selling = false
 
 local TeleportService = game:GetService("TeleportService")
 
-local lastFishCount = 0
-local lastProgress = tick()
+if _G.AutoFish then
+    local lastFishCount = 0
+    local lastProgress = tick()
 
-task.spawn(function()
-    while true do
-        task.wait(10)
+    task.spawn(function()
+        while true do
+            task.wait(10)
 
-        if not autoFishEnabled then
-            lastFishCount = fishCount
-            lastProgress = tick()
-            continue
+            if not autoFishEnabled then
+                lastFishCount = fishCount
+                lastProgress = tick()
+                continue
+            end
+
+            if selling or autoEggEnabled or autoSpecialPotionEgg then
+                lastProgress = tick()
+                continue
+            end
+
+            if fishCount ~= lastFishCount then
+                lastFishCount = fishCount
+                lastProgress = tick()
+            end
+
+            if tick() - lastProgress >= 300 then
+                StatusLabel.Text = "Status: Rejoining..."
+
+                TeleportService:Teleport(game.PlaceId, player)
+                break
+            end
         end
-
-        if selling or autoEggEnabled or autoSpecialPotionEgg then
-             lastProgress = tick()
-            continue
-        end
-
-        if fishCount ~= lastFishCount then
-            lastFishCount = fishCount
-            lastProgress = tick()
-        end
-
-        if tick() - lastProgress >= 300 then
-            StatusLabel.Text = "Status: Rejoining..."
-
-            TeleportService:Teleport(game.PlaceId, player)
-            break
-        end
-    end
-end)
+    end)
+end
 
 local FISH_SPOTS = {
     Vector3.new(62.35, 100, -299),
