@@ -808,6 +808,10 @@ task.spawn(function()
             if tick() - lastFinishClick > 1 then
                 lastFinishClick = tick()
                 clickScale(1113, 342)
+                task.wait(0.1)
+                clickScale(1113, 360)
+                task.wait(0.1)
+                clickScale(1113, 380)
                 fishCount += 1
                 FishCounterLabel.Text = "🎣 FISH: " .. fishCount
             end
