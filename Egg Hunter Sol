@@ -745,7 +745,7 @@ local function openShop()
         task.wait(0.3)
         clickScale(825, 630) 
         task.wait(0.1)  
-        clickScale(825, 660)   
+        clickScale(825, 600)   
         
     end
     task.wait(0.2)
@@ -809,9 +809,9 @@ task.spawn(function()
                 lastFinishClick = tick()
                 clickScale(1113, 342)
                 task.wait(0.1)
-                clickScale(1113, 400)
+                clickScale(1113, 300)
                 task.wait(0.1)
-                clickScale(1113, 450)
+                clickScale(1113, 260)
                 fishCount += 1
                 FishCounterLabel.Text = "🎣 FISH: " .. fishCount
             end
