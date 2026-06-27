@@ -745,7 +745,7 @@ local function openShop()
         task.wait(0.3)
         clickScale(825, 630) 
         task.wait(0.1)  
-        clickScale(825, 635)   
+        clickScale(825, 660)   
         
     end
     task.wait(0.2)
