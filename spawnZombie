@@ -1,0 +1,198 @@
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Xóa GUI cũ để tránh trùng lặp khi chạy lại script
+pcall(function()
+    game.CoreGui:FindFirstChild("TeleportGUI"):Destroy()
+end)
+
+-- Tọa độ các vị trí dịch chuyển
+local Positions = {
+    RED = {
+        Base = Vector3.new(-56, 12, -179),
+        Tank = Vector3.new(-73, 11, -118),
+        Basic = Vector3.new(-55, 11, -118),
+        Fast = Vector3.new(-35, 11, -118)
+    },
+    BLUE = {
+        Base = Vector3.new(-59, 12, 172),
+        Tank = Vector3.new(-35, 11, 112),
+        Basic = Vector3.new(-55, 11, 114),
+        Fast = Vector3.new(-73, 11, 114)
+    }
+}
+
+local running = false
+local selectedRedZom = "Tank"
+local selectedBlueZom = "Tank"
+
+-- ================= KHỞI TẠO GUI CHÍNH =================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "TeleportGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = game.CoreGui
+
+-- Khung Menu chính
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 220, 0, 260)
+Frame.Position = UDim2.new(0.5, -110, 0.5, -130)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Parent = ScreenGui
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 8)
+Corner.Parent = Frame
+
+-- Nút Ẩn/Hiện nhỏ (Nằm góc trên bên trái màn hình, không bị kéo đi mất)
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(0, 90, 0, 35)
+ToggleButton.Position = UDim2.new(0, 10, 0, 10)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+ToggleButton.Text = "ĐÓNG MENU"
+ToggleButton.TextColor3 = Color3.new(1, 1, 1)
+ToggleButton.TextSize = 13
+ToggleButton.Font = Enum.Font.SourceSansBold
+ToggleButton.Parent = ScreenGui
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 6)
+ToggleCorner.Parent = ToggleButton
+
+-- Xử lý ẩn hiện khi bấm nút
+ToggleButton.MouseButton1Click:Connect(function()
+    Frame.Visible = not Frame.Visible
+    if Frame.Visible then
+        ToggleButton.Text = "ĐÓNG MENU"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    else
+        ToggleButton.Text = "MỞ MENU"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 100) -- Đổi màu xanh khi đang ẩn cho dễ thấy
+    end
+end)
+
+-- Hàm tạo nút trong Menu
+local function createButton(text, color, x, y, width, height, parent)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(0, width, 0, height)
+    b.Position = UDim2.new(0, x, 0, y)
+    b.BackgroundColor3 = color
+    b.Text = text
+    b.TextColor3 = Color3.new(1, 1, 1)
+    b.TextSize = 14
+    b.Font = Enum.Font.SourceSansBold
+    b.Parent = parent or Frame
+
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, 5)
+    c.Parent = b
+    return b
+end
+
+-- ================= GIAO DIỆN PHÍA TRONG MENU =================
+local RedButton = createButton("TELEPORT RED", Color3.fromRGB(220, 50, 50), 10, 10, 200, 35)
+local RedZomBtn = createButton("Zom: Tank", Color3.fromRGB(150, 30, 30), 10, 50, 200, 25)
+
+local redZomTypes = {"Tank", "Basic", "Fast"}
+local redIdx = 1
+RedZomBtn.MouseButton1Click:Connect(function()
+    redIdx = redIdx % #redZomTypes + 1
+    selectedRedZom = redZomTypes[redIdx]
+    RedZomBtn.Text = "Zom: " .. selectedRedZom
+end)
+
+local BlueButton = createButton("TELEPORT XANH", Color3.fromRGB(50, 120, 220), 10, 95, 200, 35)
+local BlueZomBtn = createButton("Zom: Tank", Color3.fromRGB(30, 80, 150), 10, 135, 200, 25)
+
+local blueZomTypes = {"Tank", "Basic", "Fast"}
+local blueIdx = 1
+BlueZomBtn.MouseButton1Click:Connect(function()
+    blueIdx = blueIdx % #blueZomTypes + 1
+    selectedBlueZom = blueZomTypes[blueIdx]
+    BlueZomBtn.Text = "Zom: " .. selectedBlueZom
+end)
+
+local StopButton = createButton("STOP TELEPORT", Color3.fromRGB(80, 80, 80), 10, 180, 200, 40)
+StopButton.TextSize = 16
+
+-- ================= LOGIC DỊCH CHUYỂN VÒNG LẶP =================
+local function stopTeleport()
+    running = false
+end
+
+local function startTeleport(team, zomType)
+    stopTeleport()
+    task.wait(0.05)
+    running = true
+
+    task.spawn(function()
+        local toggle = true
+        while running do
+            local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+            local hrp = character:WaitForChild("HumanoidRootPart", 3)
+
+            if hrp then
+                local basePos = Positions[team].Base
+                local zomPos = Positions[team][zomType]
+
+                hrp.CFrame = CFrame.new(toggle and basePos or zomPos)
+                toggle = not toggle
+            end
+            task.wait(0.1)
+        end
+    end)
+end
+
+RedButton.MouseButton1Click:Connect(function()
+    startTeleport("RED", selectedRedZom)
+end)
+
+BlueButton.MouseButton1Click:Connect(function()
+    startTeleport("BLUE", selectedBlueZom)
+end)
+
+StopButton.MouseButton1Click:Connect(function()
+    stopTeleport()
+end)
+
+-- ================= HỆ THỐNG KÉO THẢ MƯỢT TRÊN PC & MOBILE =================
+local dragging = false
+local dragInput, dragStart, startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    Frame.Position = UDim2.new(
+        startPos.X.Scale, 
+        startPos.X.Offset + delta.X, 
+        startPos.Y.Scale, 
+        startPos.Y.Offset + delta.Y
+    )
+end
+
+Frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+Frame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
