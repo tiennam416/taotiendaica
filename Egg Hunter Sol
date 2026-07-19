@@ -1,6 +1,6 @@
 local player = game.Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
-
+local GuiService = game:GetService("GuiService")
 local gui = PlayerGui:WaitForChild("MainInterface")
 local TweenService = game:GetService("TweenService")
 local vim = game:GetService("VirtualInputManager")
@@ -483,6 +483,36 @@ local function stopObstacleJump()
         obstacleConnection = nil
     end
 end
+local currentPathParts = {}
+
+local  function clearPath()
+    for _, p in pairs(currentPathParts) do
+        if p and p.Parent then
+            p:Destroy()
+        end
+    end
+    currentPathParts = {}
+end
+
+local function drawPath(waypoints)
+    clearPath()
+
+    for _, wp in ipairs(waypoints) do
+        local part = Instance.new("Part")
+        part.Size = Vector3.new(0.6, 0.6, 0.6)
+        part.Shape = Enum.PartType.Ball
+        part.Material = Enum.Material.Neon
+        part.Color = Color3.fromRGB(0, 255, 200)
+        part.Anchored = true
+        part.CanCollide = false
+        part.Position = wp.Position + Vector3.new(0, 0.5, 0)
+        part.Parent = workspace
+
+        table.insert(currentPathParts, part)
+    end
+end
+
+local showPathEnabled = false
 
 local function smartMoveTo(targetPos, retry)
     retry = retry or 0
@@ -532,6 +562,7 @@ end
 
         path = createPath()
         if not computePath(path) then
+            clearPath()
             StatusLabel.Text = "Status: Path failed → retrying..."
 
             local offset = Vector3.new(
@@ -548,6 +579,12 @@ end
     end
 
     local waypoints = path:GetWaypoints()
+
+    if showPathEnabled then
+        drawPath(waypoints)
+    else
+        clearPath()
+    end
 
     local lastPos = hrp.Position
     local stuckTime = 0
@@ -594,7 +631,7 @@ end
     humanoid:Move(Vector3.zero)
 end
 -- Find Fishing UI elements
-local movingBar, targetBar, startfishing, exitfishing, status, shopfish = nil, nil, nil, nil, nil, nil
+local movingBar, targetBar, startfishing, exitfishing, status, shopfish, framefish,mumberoffish = nil, nil, nil, nil, nil, nil, nil, nil
 
 -- Tìm UI câu cá
 for _, v in pairs(gui:GetChildren()) do
@@ -632,6 +669,43 @@ for _, vv in pairs(gui:GetChildren()) do
         end
     end
 end
+--tìm chỗ cá
+for _, vv in pairs(shopfish:GetChildren()) do
+    if vv:IsA("Frame") then
+        local frameCount, imageButtonCount, imageLabelCount, textLabelCount = 0,0,0,0
+        for _, kk in pairs(vv:GetChildren()) do
+            if kk.Name == "Frame" then frameCount += 1
+            elseif kk.Name == "ImageButton" then imageButtonCount += 1
+            elseif kk.Name == "ImageLabel" then imageLabelCount += 1
+            elseif kk.Name == "TextLabel" then textLabelCount += 1
+            elseif kk.Name == "UIStroke" then hasStroke = true end
+        end
+        if  frameCount == 2 and imageButtonCount == 2 and imageLabelCount == 0 and textLabelCount == 0 then
+            framefish = vv;
+        end
+    end
+end
+
+for _, vv in pairs(framefish:GetChildren()) do
+    if vv:IsA("Frame") then        
+        for _, kk in pairs(vv:GetChildren()) do
+            if kk.name == "ScrollingFrame" then
+                local isCa = true;
+                for _,kkk in pairs(kk:GetChildren()) do
+                    if(kkk.name == "_quad_padding") then
+                        isca = false
+                        break
+                    end
+                end
+                if isCa then 
+                    numberoffish = kk
+                    break
+                end
+            end
+        end
+        
+    end
+end
 
 local function clickScale(px, py)
     local viewport = workspace.CurrentCamera.ViewportSize
@@ -641,6 +715,36 @@ local function clickScale(px, py)
     task.wait(0.08)
     vim:SendMouseButtonEvent(x, y, 0, false, game, 0)
 end
+
+local function clickGui(uiPath)
+    if uiPath and uiPath:IsA("GuiObject") then        
+        local insetX, insetY = 0, 0
+        pcall(function()
+            local inset = GuiService:GetGuiInset()
+            insetX, insetY = inset.X, inset.Y
+        end)        
+        
+        local topLeft = uiPath.AbsolutePosition
+        local size = uiPath.AbsoluteSize
+        
+        if topLeft and size then
+            -- Áp dụng công thức tính tọa độ
+            local centerX = topLeft.X + (size.X / 2) + insetX
+            local centerY = topLeft.Y + (size.Y / 2) + insetY           
+            
+           
+            vim:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
+            task.wait(0.05)
+            vim:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
+            
+            print("Đã click tự động vào [" .. uiPath.Name .. "] tại tọa độ:", centerX, centerY)
+        else
+            warn("Không thể lấy tọa độ Absolute của UI này. Hãy chắc chắn game đang CHẠY (Play Mode)!")
+        end
+    else
+        warn("Đối tượng truyền vào không phải là một UI hợp lệ (GuiObject)!")
+    end 
+end 
 
 ----- them cho cau ca----------------
 
@@ -700,7 +804,7 @@ local function openShop()
     if shopfish then shopfish.Visible = true end
     task.wait(1.5)
     
-    for i = 1, math.floor(fishCount/1.2) do
+    while #numberoffish:GetChildren() >= 2 do
         task.wait(0.4)
         clickScale(833, 430)
         task.wait(0.3)
@@ -758,7 +862,7 @@ task.spawn(function()
         if startfishing and startfishing.Visible and status and math.abs(status.BackgroundTransparency - 0.4) < 0.02 then
             StatusLabel.Text = "Status: Casting..."
             task.wait(0.4)
-            clickScale(852, 834)
+            clickGui(startfishing)
             task.wait(0.25)
         end
 
@@ -770,11 +874,7 @@ task.spawn(function()
             task.wait(1.7)
             if tick() - lastFinishClick > 1 then
                 lastFinishClick = tick()
-                clickScale(1113, 342)
-                task.wait(0.1)
-                clickScale(1113, 300)
-                task.wait(0.1)
-                clickScale(1113, 260)
+                clickGui(exitfishing)                
                 fishCount += 1
                 FishCounterLabel.Text = "🎣 FISH: " .. fishCount
             end
@@ -792,7 +892,7 @@ task.spawn(function()
                     local absPos = movingBar.Parent.AbsolutePosition
                     local absSize = movingBar.Parent.AbsoluteSize
                     local x = absPos.X + absSize.X / 2
-                    local y = absPos.Y + absSize.Y / 2
+                    local y = absPos.Y + (absSize.Y + 30) / 2;
                     vim:SendMouseButtonEvent(x, y, 0, true, game, 0)
                     task.wait(0.01)
                     vim:SendMouseButtonEvent(x, y, 0, false, game, 0)
@@ -1275,6 +1375,76 @@ end)
 
 -------------------------MISC--------------------------------------
 
+-- ================= CAMERA SYSTEM =================
+local camera = workspace.CurrentCamera
+local runService = game:GetService("RunService")
+
+local eggCamEnabled = false
+
+local currentZoom = 50
+local targetZoom = 50
+local minZoom = 20
+local maxZoom = 80
+
+local tiltFactor = 0.4
+local currentCFrame = camera.CFrame
+
+-- FOLLOW
+runService.RenderStepped:Connect(function()
+	if not eggCamEnabled then return end
+	if not hrp then return end
+
+	currentZoom = currentZoom + (targetZoom - currentZoom) * 0.1
+	
+	local offset = Vector3.new(0, currentZoom, currentZoom * tiltFactor)
+
+	local target = CFrame.new(
+		hrp.Position + offset,
+		hrp.Position
+	)
+
+	currentCFrame = currentCFrame:Lerp(target, 0.15)
+
+	camera.CameraType = Enum.CameraType.Scriptable
+	camera.CFrame = currentCFrame
+end)
+
+-- PC SCROLL
+UserInputService.InputChanged:Connect(function(input, gpe)
+	if gpe then return end
+	
+	if input.UserInputType == Enum.UserInputType.MouseWheel then
+		targetZoom = targetZoom - input.Position.Z * 5
+		targetZoom = math.clamp(targetZoom, minZoom, maxZoom)
+	end
+end)
+
+-- MOBILE PINCH
+UserInputService.TouchPinch:Connect(function(_, scale, _, state)
+	if state == Enum.UserInputState.Change then
+		targetZoom = targetZoom - (scale - 1) * 50
+		targetZoom = math.clamp(targetZoom, minZoom, maxZoom)
+	end
+end)
+
+local camToggle = createToggle(MiscFrame, "CAMERA LIÊN QUÂN", 0.6, function(state)
+    eggCamEnabled = state
+
+    if state then
+        camera.CameraType = Enum.CameraType.Scriptable
+    else
+        camera.CameraType = Enum.CameraType.Custom
+    end
+end, false)
+
+-- Toggle
+local pathduongdi = createToggle(MiscFrame, "HIỆN ĐƯỜNG ĐI", 0.0185, function(state)
+    showPathEnabled = state
+    if not state then
+        clearPath()
+    end
+end,true)
+
 -- ================= SPEED=================
 local boostEnabled = false
 local speedValue = 18
@@ -1313,6 +1483,7 @@ local antiAfkEnabled = false
 createToggle(MiscFrame, "ANTI AFK", 0.21, function(state)
     antiAfkEnabled = state
 end, true)
+
 task.spawn(function()
     while true do
         task.wait(300)
@@ -1392,7 +1563,8 @@ local function setupCharacter(char)
     lastClickTime = 0
     lastFinishClick = 0
 
-    -- Clear UI
+    -- Clear path + UI
+    clearPath()
     StatusLabel.Text = "Status: Respawned..."
 
     -- Stop mọi thứ cũ
@@ -1402,6 +1574,7 @@ local function setupCharacter(char)
     -- Khi chết
     humanoid.Died:Connect(function()
         stopObstacleJump()
+        clearPath()
         StatusLabel.Text = "Status: Died..."
     end)
 
