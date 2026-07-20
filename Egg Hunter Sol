@@ -18,7 +18,7 @@ local hrp = character:WaitForChild("HumanoidRootPart")
 
 local function autoText(label, min, max)
     local cam = workspace.CurrentCamera
-    
+
     local function update()
         local size = cam.ViewportSize
         local scaleX = size.X / 1920
@@ -50,8 +50,6 @@ Main.Parent = ScreenGui
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 16)
 
 local sizeConstraint = Instance.new("UISizeConstraint")
---sizeConstraint.MaxSize = Vector2.new(900, 700)
---sizeConstraint.MinSize = Vector2.new(300, 300)
 sizeConstraint.MaxSize = Vector2.new(700, 450)
 sizeConstraint.MinSize = Vector2.new(350, 320)
 sizeConstraint.Parent = Main
@@ -111,13 +109,12 @@ Content.Parent = Main
 local tabs = {}
 local function createTab(name, icon)
     local btn = Instance.new("TextButton")
-    --btn.Size = UDim2.new(1,0,0,50)
     btn.BackgroundColor3 = Color3.fromRGB(35,35,45)
     btn.Text = icon.." "..name
-    
-	btn.Size = UDim2.new(1,0,0.1,0)
-	btn.TextScaled = false
-	autoText(btn, 14, 22)
+
+    btn.Size = UDim2.new(1,0,0.1,0)
+    btn.TextScaled = false
+    autoText(btn, 14, 22)
     btn.Font = Enum.Font.GothamSemibold
     btn.TextColor3 = Color3.new(1,1,1)
     btn.Parent = Sidebar
@@ -197,7 +194,6 @@ local function createToggle(parent, text, posY, callback, default)
 
     local enabled = default or false
 
-    -- 🔥 TOGGLE BG (ổn định cho mobile + PC)
     local toggleBG = Instance.new("Frame")
     toggleBG.Parent = btn
     toggleBG.Size = UDim2.new(0, 44, 0, 24)
@@ -209,13 +205,11 @@ local function createToggle(parent, text, posY, callback, default)
 
     Instance.new("UICorner", toggleBG).CornerRadius = UDim.new(1, 0)
 
-    -- 🔥 đảm bảo không bị quá nhỏ / quá to trên mobile
     local sizeLimit = Instance.new("UISizeConstraint")
     sizeLimit.MinSize = Vector2.new(40, 20)
     sizeLimit.MaxSize = Vector2.new(80, 40)
     sizeLimit.Parent = toggleBG
 
-    -- 🔥 CIRCLE (nút tròn)
     local circle = Instance.new("Frame")
     circle.Parent = toggleBG
     circle.Size = UDim2.new(0, 20, 0, 20)
@@ -230,7 +224,6 @@ local function createToggle(parent, text, posY, callback, default)
 
     Instance.new("UICorner", circle).CornerRadius = UDim.new(1, 0)
 
-    -- 🔥 CLICK EVENT
     btn.MouseButton1Click:Connect(function()
         enabled = not enabled
 
@@ -252,14 +245,14 @@ local function createToggle(parent, text, posY, callback, default)
         end
     end)
 
-    -- 🔥 init callback
     if callback then
         callback(enabled)
     end
 
     return btn
 end
--- ================= BUTTON FUNCTION =================
+
+-- ================== BUTTON FUNCTION (action, no toggle state) ==================
 local function createButton(parent, text, posY, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0.8, 0, 0.12, 0)
@@ -287,6 +280,7 @@ local function createButton(parent, text, posY, callback)
 
     return btn
 end
+
 -- ================== FLOAT BUTTON ==================
 local ToggleButton = Instance.new("ImageButton")
 ToggleButton.Size = UDim2.new(0.025, 20, 0.05, 20)
@@ -294,7 +288,7 @@ ToggleButton.Position = UDim2.new(0.02, 0, 0.5, 0)
 ToggleButton.AnchorPoint = Vector2.new(0, 0.5)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 ToggleButton.BackgroundTransparency = 0.1
-ToggleButton.Image = "rbxassetid://123420848310049" -- 🔥 đổi ID logo nếu muốn
+ToggleButton.Image = "rbxassetid://123420848310049"
 ToggleButton.Parent = ScreenGui
 ToggleButton.Active = true
 ToggleButton.Draggable = true
@@ -306,7 +300,6 @@ strokeBtn.Color = Color3.fromRGB(0, 200, 255)
 strokeBtn.Thickness = 2
 strokeBtn.Parent = ToggleButton
 
--- Hiệu ứng hover
 ToggleButton.MouseEnter:Connect(function()
     ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
 end)
@@ -315,7 +308,6 @@ ToggleButton.MouseLeave:Connect(function()
     ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 end)
 
--- Toggle menu
 local menuVisible = false
 ToggleButton.MouseButton1Click:Connect(function()
     menuVisible = not menuVisible
@@ -431,100 +423,100 @@ local FISH_SPOTS = {
 }
 local SHOP_POS = Vector3.new(94, 107.5, -296.17)
 
-local obstacleConnection = nil
 local lastJump = 0
 local JUMP_COOLDOWN = 0.35
 local raycastParams = RaycastParams.new()
 raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 raycastParams.IgnoreWater = true
 
--- Obstacle Jump (dùng chung với Egg)
-local function startObstacleJump()
-    if obstacleConnection then
-    obstacleConnection:Disconnect()
-    obstacleConnection = nil
+-- ================== OBSTACLE JUMP (REWRITE) ==================
+
+local isPathing = false
+
+local function obstacleJumpLoop()
+    if not isPathing then return end
+    if not autoFishEnabled and not autoEggEnabled and not autoSpecialPotionEgg then
+        return
     end
-    obstacleConnection = RunService.Heartbeat:Connect(function()
-        if not autoFishEnabled and not autoEggEnabled and not autoSpecialPotionEgg then 
-            return 
+
+    local character = player.Character
+    if not character then return end
+
+    local humanoid = character:FindFirstChild("Humanoid")
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not hrp then return end
+
+    if autoFishEnabled then
+        if (hrp.Position - SHOP_POS).Magnitude <= 6 then
+            return
         end
+    end
 
-        local character = player.Character
-        if not character then return end
-
-        local humanoid = character:FindFirstChild("Humanoid")
-        local hrp = character:FindFirstChild("HumanoidRootPart")
-        if not humanoid or not hrp then return end
-
-        -- ❗ FIX: check gần shop (fish)
-        if autoFishEnabled then
-            if (hrp.Position - SHOP_POS).Magnitude <= 6 then
+    if autoEggEnabled then
+        local egg = findBestEgg()
+        if egg then
+            local pos = getEggPosition(egg)
+            if pos and (hrp.Position - pos).Magnitude <= 6 then
                 return
             end
         end
+    end
 
-        -- ❗ FIX: check gần egg
-        if autoEggEnabled then
-            local egg = findBestEgg()
-            if egg then
-                local pos = getEggPosition(egg)
-                if pos and (hrp.Position - pos).Magnitude <= 6 then
-                    return
-                end
+    raycastParams.FilterDescendantsInstances = {character}
+
+    local basePos = hrp.Position
+    local forward = hrp.CFrame.LookVector * 6
+    local heights = {
+        Vector3.new(0,-1.85,0),
+        Vector3.new(0,0,0),
+        Vector3.new(0,2,0)
+    }
+
+    for _, offset in ipairs(heights) do
+        local result = workspace:Raycast(basePos + offset, forward, raycastParams)
+        if result and result.Instance.CanCollide then
+
+            local highCheck = workspace:Raycast(basePos + Vector3.new(0,3.5,0), forward, raycastParams)
+            if highCheck and highCheck.Instance == result.Instance then
+                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(20), 0)
+                return
+            end
+
+            if tick() - lastJump > JUMP_COOLDOWN then
+                lastJump = tick()
+                humanoid.JumpPower = 58
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                return
             end
         end
+    end
+end
 
-        raycastParams.FilterDescendantsInstances = {character}
+-- ✅ Connect một lần duy nhất cho toàn bộ vòng đời script
+local obstacleConnection = RunService.Heartbeat:Connect(obstacleJumpLoop)
 
-        local basePos = hrp.Position
-        local forward = hrp.CFrame.LookVector * 6
-        local heights = {
-            Vector3.new(0,-1.85,0),
-            Vector3.new(0,0,0),
-            Vector3.new(0,2,0)
-        }
-
-        for _, offset in ipairs(heights) do
-            local result = workspace:Raycast(basePos + offset, forward, raycastParams)
-            if result and result.Instance.CanCollide then
-
-                local highCheck = workspace:Raycast(basePos + Vector3.new(0,3.5,0), forward, raycastParams)
-                if highCheck and highCheck.Instance == result.Instance then
-                    hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(20), 0)
-                    return
-                end
-
-                if tick() - lastJump > JUMP_COOLDOWN then
-                    lastJump = tick()
-                    humanoid.JumpPower = 58
-                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                    return
-                end
-            end
-        end
-    end)
+local function startObstacleJump()
+    isPathing = true
 end
 
 local function stopObstacleJump()
-    if obstacleConnection then
-        obstacleConnection:Disconnect()
-        obstacleConnection = nil
-    end
+    isPathing = false
 end
 
 local function smartMoveTo(targetPos, retry)
     retry = retry or 0
 
-    -- ❗ GIỚI HẠN RETRY
-   if retry >= 10 then
-    StatusLabel.Text = "Status: Stuck → Resetting..."
+    if retry >= 10 then
+        StatusLabel.Text = "Status: Stuck → Resetting..."
+        stopObstacleJump() -- ✅ FIX: tắt cờ trước khi reset nhân vật
 
-    if humanoid and humanoid.Health > 0 then
-        humanoid.Health = 0
+        if humanoid and humanoid.Health > 0 then
+            humanoid.Health = 0
+        end
+
+        return
     end
 
-    return
-end
     local character = player.Character or player.CharacterAdded:Wait()
     local humanoid = character:WaitForChild("Humanoid")
     local hrp = character:WaitForChild("HumanoidRootPart")
@@ -553,7 +545,6 @@ end
         return ok and path.Status == Enum.PathStatus.Success
     end
 
-    -- ================= RETRY PATH =================
     local path = createPath()
     if not computePath(path) then
         task.wait(0.25)
@@ -570,7 +561,6 @@ end
 
             task.wait(0.2)
 
-            -- ✅ FIX: có retry
             return smartMoveTo(targetPos + offset, retry + 1)
         end
     end
@@ -581,17 +571,20 @@ end
     local stuckTime = 0
 
     for _, wp in ipairs(waypoints) do
-        if not character or humanoid.Health <= 0 then return end
+        if not character or humanoid.Health <= 0 then
+            stopObstacleJump() -- ✅ FIX
+            return
+        end
         if not (autoFishEnabled or autoEggEnabled or autoSpecialPotionEgg) then
-    return
-end
+            stopObstacleJump() -- ✅ FIX
+            return
+        end
 
         humanoid:MoveTo(wp.Position)
 
         local reached = humanoid.MoveToFinished:Wait(1.5)
         local moved = (hrp.Position - lastPos).Magnitude
 
-        -- ================= STUCK CHECK =================
         if moved < 0.55 or not reached then
             stuckTime += 1
         else
@@ -600,7 +593,6 @@ end
 
         lastPos = hrp.Position
 
-        -- ================= UNSTUCK FIX =================
         if stuckTime >= 2 then
             StatusLabel.Text = "Status: Unstucking..."
 
@@ -613,18 +605,16 @@ end
             humanoid:MoveTo(hrp.Position + side.Unit * 6)
             humanoid.MoveToFinished:Wait(1)
 
-            -- ✅ FIX: có retry
             return smartMoveTo(targetPos, retry + 1)
         end
     end
 
-    -- ✅ FIX: tránh đứng yên sau khi đi xong
+    stopObstacleJump() -- ✅ FIX: đi xong tắt hẳn, đứng yên không bị nhảy nữa
     humanoid:Move(Vector3.zero)
 end
 -- Find Fishing UI elements
 local movingBar, targetBar, startfishing, exitfishing, status, shopfish, framefish,mumberoffish = nil, nil, nil, nil, nil, nil, nil, nil
 
--- Tìm UI câu cá
 for _, v in pairs(gui:GetChildren()) do
     if v.Name == "ImageLabel" then
         local hasAspect, hasStroke = false, false
@@ -644,7 +634,6 @@ end
 exitfishing.Size = UDim2.new(0.3, 0, 0.3, 0)
 startfishing.Size = UDim2.new(0.9, 0, 0.9, 8)
 
--- Tìm Shop UI
 for _, vv in pairs(gui:GetChildren()) do
     if vv:IsA("Frame") then
         local frameCount, imageButtonCount, imageLabelCount, textLabelCount, hasStroke = 0,0,0,0,false
@@ -660,7 +649,6 @@ for _, vv in pairs(gui:GetChildren()) do
         end
     end
 end
---tìm chỗ cá
 for _, vv in pairs(shopfish:GetChildren()) do
     if vv:IsA("Frame") then
         local frameCount, imageButtonCount, imageLabelCount, textLabelCount = 0,0,0,0
@@ -678,7 +666,7 @@ for _, vv in pairs(shopfish:GetChildren()) do
 end
 
 for _, vv in pairs(framefish:GetChildren()) do
-    if vv:IsA("Frame") then        
+    if vv:IsA("Frame") then
         for _, kk in pairs(vv:GetChildren()) do
             if kk.name == "ScrollingFrame" then
                 local isCa = true;
@@ -688,13 +676,13 @@ for _, vv in pairs(framefish:GetChildren()) do
                         break
                     end
                 end
-                if isCa then 
+                if isCa then
                     numberoffish = kk
                     break
                 end
             end
         end
-        
+
     end
 end
 
@@ -708,34 +696,32 @@ local function clickScale(px, py)
 end
 
 local function clickGui(uiPath)
-    if uiPath and uiPath:IsA("GuiObject") then        
+    if uiPath and uiPath:IsA("GuiObject") then
         local insetX, insetY = 0, 0
         pcall(function()
             local inset = GuiService:GetGuiInset()
             insetX, insetY = inset.X, inset.Y
-        end)        
-        
+        end)
+
         local topLeft = uiPath.AbsolutePosition
         local size = uiPath.AbsoluteSize
-        
+
         if topLeft and size then
-            -- Áp dụng công thức tính tọa độ
             local centerX = topLeft.X + (size.X / 2) + insetX
-            local centerY = topLeft.Y + (size.Y / 2) + insetY           
-            
-           
+            local centerY = topLeft.Y + (size.Y / 2) + insetY
+
             vim:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
             task.wait(0.05)
             vim:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
-            
+
             print("Đã click tự động vào [" .. uiPath.Name .. "] tại tọa độ:", centerX, centerY)
         else
             warn("Không thể lấy tọa độ Absolute của UI này. Hãy chắc chắn game đang CHẠY (Play Mode)!")
         end
     else
         warn("Đối tượng truyền vào không phải là một UI hợp lệ (GuiObject)!")
-    end 
-end 
+    end
+end
 
 ----- them cho cau ca----------------
 
@@ -768,7 +754,6 @@ local function getBestFishSpot()
         end
     end
 
-    -- ❗ nếu tất cả đều bị chiếm → chọn đại 1 cái gần nhất
     if not closest then
         for _, pos in ipairs(FISH_SPOTS) do
             local d = (hrp.Position - pos).Magnitude
@@ -782,13 +767,14 @@ local function getBestFishSpot()
     return closest
 end
 
+-- ✅ FIX: openShop giờ xác nhận thực sự đến gần shop rồi mới bán,
+-- tránh trường hợp smartMoveTo bị fail/stuck nhưng vẫn mở shop bán "ảo".
 local function openShop()
     if selling then return end
 
     selling = true
     StatusLabel.Text = "Status: Going to shop..."
 
-    -- ✅ FIX: đảm bảo thực sự đến gần shop rồi mới bán
     local attempts = 0
     while (hrp.Position - SHOP_POS).Magnitude > 8 and attempts < 6 do
         smartMoveTo(SHOP_POS)
@@ -797,7 +783,6 @@ local function openShop()
     end
 
     if (hrp.Position - SHOP_POS).Magnitude > 8 then
-        -- vẫn chưa tới nơi sau nhiều lần thử → bỏ qua lần này, thử lại ở vòng lặp sau
         StatusLabel.Text = "Status: Can't reach shop, retry later..."
         selling = false
         return
@@ -818,6 +803,7 @@ local function openShop()
         clickScale(825, 630)
         task.wait(0.1)
         clickScale(825, 600)
+
     end
     task.wait(0.2)
     fishCount = 0
@@ -830,6 +816,7 @@ local function openShop()
         smartMoveTo(spot)
     end
     selling = false
+
 end
 
 local fishBiting = false
@@ -861,7 +848,6 @@ task.spawn(function()
             continue
         end
 
-        -- Auto Cast
         if startfishing and startfishing.Visible and status and math.abs(status.BackgroundTransparency - 0.4) < 0.02 then
             StatusLabel.Text = "Status: Casting..."
             task.wait(0.4)
@@ -871,19 +857,17 @@ task.spawn(function()
 
         checkFish()
 
-        -- Auto Finish
         if not fishBiting and status and math.abs(status.Size.X.Scale - 0.185) < 0.02 then
             StatusLabel.Text = "Status: Caught!"
             task.wait(1.7)
             if tick() - lastFinishClick > 1 then
                 lastFinishClick = tick()
-                clickGui(exitfishing)                
+                clickGui(exitfishing)
                 fishCount += 1
                 FishCounterLabel.Text = "🎣 FISH: " .. fishCount
             end
         end
 
-        -- Auto Click when fish biting
         if fishBiting and movingBar and targetBar then
             local xScale = movingBar.Size.X.Scale
             local center = targetBar.Position.X.Scale + targetBar.Size.X.Scale / 2
@@ -913,7 +897,7 @@ local function EnableAutoFish()
     Main.Visible = false;
     startObstacleJump()
     StatusLabel.Text = "Status: Starting..."
-    
+
     local spot = getBestFishSpot()
     if spot then
         smartMoveTo(spot)
@@ -929,14 +913,13 @@ end)
 
 local autoFishToggle = createToggle(FishFrame, "AUTO FISH", 0.25, function(state)
     autoFishEnabled = state
-    
+
     if state then
-        -- ❗ tắt egg khi bật fish
         autoEggEnabled = false
-        
+
         startObstacleJump()
         StatusLabel.Text = "Status: Starting..."
-		workspace.Map.Miscs.FishShop.NPC.ProximityPrompt.Enabled = false
+        workspace.Map.Miscs.FishShop.NPC.ProximityPrompt.Enabled = false
         local spot = getBestFishSpot()
         if spot then
             smartMoveTo(spot)
@@ -945,7 +928,7 @@ local autoFishToggle = createToggle(FishFrame, "AUTO FISH", 0.25, function(state
     else
         stopObstacleJump()
         StatusLabel.Text = "Status: Stopped"
-		workspace.Map.Miscs.FishShop.NPC.ProximityPrompt.Enabled = true
+        workspace.Map.Miscs.FishShop.NPC.ProximityPrompt.Enabled = true
         print("❌ AUTO FISH: TẮT")
     end
 end)
@@ -1010,7 +993,7 @@ local forbiddenZones = {
     {minX = 521.85,  maxX = 526.75,  minZ = -221.82, maxZ = -185.83},
     {minX = 597, maxX = 670, minZ = -316.47, maxZ = -100}
 }
-local eggCollected = 0  -- ✅ THÊM DÒNG NÀY
+local eggCollected = 0
 local eggCounterLabel = Instance.new("TextButton")
 eggCounterLabel.Size = UDim2.new(0.8, 0, 0.12, 0)
 eggCounterLabel.Position = UDim2.new(0.05, 0, 0.05, 0)
@@ -1029,11 +1012,11 @@ Instance.new("UICorner", eggCounterLabel).CornerRadius = UDim.new(0,10)
 local function isEgg(v)
     if not v or not v.Parent then return false end
     if not (v:IsA("BasePart") or v:IsA("Model")) then return false end
-    
+
     local nameLower = string.lower(v.Name)
     if not string.find(nameLower, "egg") then return false end
 
-    local prompt = v:FindFirstChildOfClass("ProximityPrompt") 
+    local prompt = v:FindFirstChildOfClass("ProximityPrompt")
         or v:FindFirstChild("ProximityPrompt", true)
 
     if not prompt or not prompt.Enabled then return false end
@@ -1041,20 +1024,19 @@ local function isEgg(v)
     return true
 end
 
--- Định nghĩa getEggPosition
 getEggPosition = function(egg)
     if egg:IsA("MeshPart") or egg:IsA("Part") then
         return egg.Position
     end
-    
+
     if egg:IsA("Model") then
-        local root = egg:FindFirstChild("HumanoidRootPart") 
+        local root = egg:FindFirstChild("HumanoidRootPart")
                   or egg:FindFirstChildWhichIsA("BasePart")
         return root and root.Position or egg:GetPivot().Position
     end
     return egg.Position
 end
--- Định nghĩa isInForbiddenZone
+
 local function isInForbiddenZone(pos)
     for _, zone in ipairs(forbiddenZones) do
         if pos.X >= zone.minX and pos.X <= zone.maxX and pos.Z >= zone.minZ and pos.Z <= zone.maxZ then
@@ -1064,23 +1046,20 @@ local function isInForbiddenZone(pos)
     return false
 end
 
-
--- Định nghĩa triggerProximityPrompt
 local function triggerProximityPrompt(egg)
-    local prompt = egg:FindFirstChildOfClass("ProximityPrompt") 
+    local prompt = egg:FindFirstChildOfClass("ProximityPrompt")
         or egg:FindFirstChild("ProximityPrompt", true)
 
     if prompt then
         fireproximityprompt(prompt)
 
-        -- 🥚 TĂNG COUNT
         eggCollected += 1
         eggCounterLabel.Text = "🥚 Eggs Collected: "..eggCollected
     end
 end
 -- ==================== ESP ====================
 local espEnabled = false
-local eggHighlights = {}  -- Để quản lý và dọn dẹp dễ dàng
+local eggHighlights = {}
 local function getEggInfo(egg)
     local nameLower = string.lower(egg.Name)
     local displayName = "Egg"
@@ -1091,7 +1070,7 @@ local function getEggInfo(egg)
         local num = string.match(egg.Name, "(%d+)") or "?"
         displayName = "Point Egg " .. num
         emoji = "⭐"
-        color = Color3.fromRGB(255, 215, 0)  -- Vàng đẹp
+        color = Color3.fromRGB(255, 215, 0)
     elseif string.find(nameLower, "potion") then
         displayName = "Potion Egg"
         emoji = "🧪"
@@ -1110,7 +1089,6 @@ local function getEggInfo(egg)
 end
 
 local function createESP(egg)
-    -- Xóa ESP cũ nếu có
     if egg:FindFirstChild("EggHighlight") then egg.EggHighlight:Destroy() end
     if egg:FindFirstChild("EggESPBillboard") then egg.EggESPBillboard:Destroy() end
 
@@ -1119,7 +1097,6 @@ local function createESP(egg)
 
     local info = getEggInfo(egg)
 
-    -- Highlight đẹp hơn
     local highlight = Instance.new("Highlight")
     highlight.Name = "EggHighlight"
     highlight.Adornee = egg:IsA("Model") and (egg.PrimaryPart or egg:FindFirstChildWhichIsA("BasePart") or egg) or egg
@@ -1130,7 +1107,6 @@ local function createESP(egg)
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     highlight.Parent = egg
 
-    -- Billboard GUI (thông tin)
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "EggESPBillboard"
     billboard.Size = UDim2.new(0, 160, 0, 55)
@@ -1163,17 +1139,16 @@ local function createESP(egg)
     label.TextScaled = true
     label.Parent = frame
 
-    -- Lưu lại để quản lý
     eggHighlights[egg] = {highlight = highlight, billboard = billboard}
 end
 
 local function clearESP()
     for _, v in pairs(workspace:GetDescendants()) do
-        if v:FindFirstChild("EggHighlight") then 
-            v.EggHighlight:Destroy() 
+        if v:FindFirstChild("EggHighlight") then
+            v.EggHighlight:Destroy()
         end
-        if v:FindFirstChild("EggESPBillboard") then 
-            v.EggESPBillboard:Destroy() 
+        if v:FindFirstChild("EggESPBillboard") then
+            v.EggESPBillboard:Destroy()
         end
     end
     eggHighlights = {}
@@ -1181,7 +1156,7 @@ end
 
 local function scanEggs()
     if not espEnabled then return end
-    
+
     for _, v in pairs(workspace:GetChildren()) do
         if isEgg(v) and not v:FindFirstChild("EggHighlight") then
             createESP(v)
@@ -1194,11 +1169,10 @@ task.spawn(function()
         if espEnabled then
             scanEggs()
         end
-        task.wait(1.5)  -- Giảm tần suất để tối ưu hiệu năng
+        task.wait(1.5)
     end
 end)
 
--- Cleanup khi egg bị destroy
 workspace.DescendantRemoving:Connect(function(desc)
     if desc:FindFirstChild("EggHighlight") or desc:FindFirstChild("EggESPBillboard") then
         if eggHighlights[desc] then
@@ -1221,12 +1195,10 @@ findBestEgg = function()
 
             local allowed = false
 
-            -- AUTO ALL EGG
             if autoEggEnabled then
                 allowed = true
             end
 
-            -- AUTO SPECIAL + POTION
             if autoSpecialPotionEgg and (isPotion or isSpecial) then
                 allowed = true
             end
@@ -1252,8 +1224,8 @@ end
 local function pauseFishingForEgg()
     if autoFishEnabled then
         wasFishingBeforeEgg = true
-        autoFishEnabled = false       
-		
+        autoFishEnabled = false
+
         StatusLabel.Text = "Status: Hunting Egg..."
     end
 end
@@ -1263,8 +1235,8 @@ local function resumeFishingAfterEgg()
         wasFishingBeforeEgg = false
         autoFishEnabled = true
 
-        StatusLabel.Text = "Status: Resume Fishing..."        
-		startObstacleJump()
+        StatusLabel.Text = "Status: Resume Fishing..."
+        startObstacleJump()
         local spot = getBestFishSpot()
         if spot then
             smartMoveTo(spot)
@@ -1276,8 +1248,8 @@ local isMovingToEgg = false
 
 local function goToBestEgg()
     if fishBiting then return end
-    if isMovingToEgg then return end    
-	if selling then return end
+    if isMovingToEgg then return end
+    if selling then return end
 
     local egg = findBestEgg()
 
@@ -1340,7 +1312,6 @@ task.spawn(function()
             continue
         end
 
-        -- FIX
         if autoEggEnabled or autoSpecialPotionEgg then
             goToBestEgg()
         end
@@ -1351,9 +1322,9 @@ end)
 
 local autoEggToggle = createToggle(EggFrame, "AUTO EGG HUNTER", 0.22, function(state)
     autoEggEnabled = state
-    
+
     if state then
-        
+
         startObstacleJump()
         print("✅ AUTO EGG HUNTER: BẬT")
     else
@@ -1388,13 +1359,13 @@ createToggle(MiscFrame, "USE BOOST SPEED", 0.4, function(state)
     boostEnabled = state
 
     local hum = player.Character and player.Character:FindFirstChild("Humanoid")
-if hum then
-    if boostEnabled then
-        hum.WalkSpeed = speedValue
-    else
-        hum.WalkSpeed = minSpeed
+    if hum then
+        if boostEnabled then
+            hum.WalkSpeed = speedValue
+        else
+            hum.WalkSpeed = minSpeed
+        end
     end
-end
 end,true)
 
 -- ================= ANTI RESET (NHẸ) =================
@@ -1402,18 +1373,12 @@ task.spawn(function()
     while true do
         if boostEnabled then
             task.wait(60)
-			local hum = player.Character and player.Character:FindFirstChild("Humanoid")
-			if hum then
-    			hum.WalkSpeed = speedValue
-			end
+            local hum = player.Character and player.Character:FindFirstChild("Humanoid")
+            if hum then
+                hum.WalkSpeed = speedValue
+            end
         end
     end
-end)
-
--- ================= REJOIN BUTTON =================
-createButton(MiscFrame, "🔄 REJOIN NOW", 0.05, function()
-    StatusLabel.Text = "Status: Rejoining..."
-    TeleportService:Teleport(game.PlaceId, player)
 end)
 
 -- ----------------------Anti-AFK----------------------------------
@@ -1427,11 +1392,18 @@ task.spawn(function()
     while true do
         task.wait(300)
 
-        if antiAfkEnabled then            
+        if antiAfkEnabled then
             clickScale(1, 1)
         end
     end
 end)
+
+-- ================= REJOIN BUTTON =================
+createButton(MiscFrame, "🔄 REJOIN NOW", 0.05, function()
+    StatusLabel.Text = "Status: Rejoining..."
+    TeleportService:Teleport(game.PlaceId, player)
+end)
+
 local folder = workspace:FindFirstChild("AutoPlatforms")
 
 if not folder then
@@ -1487,7 +1459,7 @@ for _, data in ipairs(platforms) do
         part.Position = data.pos
     end
 
-    part.Parent = folder -- 👈 cho vào Folder thay vì workspace
+    part.Parent = folder
 end
 -- ================= FULL RESPAWN FIX =================
 
@@ -1496,26 +1468,21 @@ local function setupCharacter(char)
     humanoid = char:WaitForChild("Humanoid")
     hrp = char:WaitForChild("HumanoidRootPart")
 
-    -- RESET STATE
     selling = false
     fishBiting = false
     lastClickTime = 0
     lastFinishClick = 0
 
-    -- Clear UI
     StatusLabel.Text = "Status: Respawned..."
 
-    -- Stop mọi thứ cũ
     stopObstacleJump()
     task.wait(0.3)
 
-    -- Khi chết
     humanoid.Died:Connect(function()
         stopObstacleJump()
         StatusLabel.Text = "Status: Died..."
     end)
 
-    -- Resume logic
     task.delay(0.6, function()
         if autoFishEnabled then
             StatusLabel.Text = "Status: Resume Fishing..."
