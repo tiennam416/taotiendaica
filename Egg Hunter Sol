@@ -259,6 +259,34 @@ local function createToggle(parent, text, posY, callback, default)
 
     return btn
 end
+-- ================= BUTTON FUNCTION =================
+local function createButton(parent, text, posY, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.8, 0, 0.12, 0)
+    btn.Position = UDim2.new(0.05, 0, posY, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    btn.Text = text
+    btn.Font = Enum.Font.GothamBold
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.TextScaled = false
+    autoText(btn, 14, 20)
+    btn.Parent = parent
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,10)
+
+    btn.MouseEnter:Connect(function()
+        btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    end)
+    btn.MouseLeave:Connect(function()
+        btn.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    end)
+
+    btn.MouseButton1Click:Connect(function()
+        callback()
+    end)
+
+    return btn
+end
 -- ================== FLOAT BUTTON ==================
 local ToggleButton = Instance.new("ImageButton")
 ToggleButton.Size = UDim2.new(0.025, 20, 0.05, 20)
@@ -483,36 +511,6 @@ local function stopObstacleJump()
         obstacleConnection = nil
     end
 end
-local currentPathParts = {}
-
-local  function clearPath()
-    for _, p in pairs(currentPathParts) do
-        if p and p.Parent then
-            p:Destroy()
-        end
-    end
-    currentPathParts = {}
-end
-
-local function drawPath(waypoints)
-    clearPath()
-
-    for _, wp in ipairs(waypoints) do
-        local part = Instance.new("Part")
-        part.Size = Vector3.new(0.6, 0.6, 0.6)
-        part.Shape = Enum.PartType.Ball
-        part.Material = Enum.Material.Neon
-        part.Color = Color3.fromRGB(0, 255, 200)
-        part.Anchored = true
-        part.CanCollide = false
-        part.Position = wp.Position + Vector3.new(0, 0.5, 0)
-        part.Parent = workspace
-
-        table.insert(currentPathParts, part)
-    end
-end
-
-local showPathEnabled = false
 
 local function smartMoveTo(targetPos, retry)
     retry = retry or 0
@@ -562,7 +560,6 @@ end
 
         path = createPath()
         if not computePath(path) then
-            clearPath()
             StatusLabel.Text = "Status: Path failed → retrying..."
 
             local offset = Vector3.new(
@@ -579,12 +576,6 @@ end
     end
 
     local waypoints = path:GetWaypoints()
-
-    if showPathEnabled then
-        drawPath(waypoints)
-    else
-        clearPath()
-    end
 
     local lastPos = hrp.Position
     local stuckTime = 0
@@ -793,40 +784,52 @@ end
 
 local function openShop()
     if selling then return end
-	
+
     selling = true
     StatusLabel.Text = "Status: Going to shop..."
-    
-    smartMoveTo(SHOP_POS)
+
+    -- ✅ FIX: đảm bảo thực sự đến gần shop rồi mới bán
+    local attempts = 0
+    while (hrp.Position - SHOP_POS).Magnitude > 8 and attempts < 6 do
+        smartMoveTo(SHOP_POS)
+        task.wait(0.3)
+        attempts += 1
+    end
+
+    if (hrp.Position - SHOP_POS).Magnitude > 8 then
+        -- vẫn chưa tới nơi sau nhiều lần thử → bỏ qua lần này, thử lại ở vòng lặp sau
+        StatusLabel.Text = "Status: Can't reach shop, retry later..."
+        selling = false
+        return
+    end
+
     task.wait(1.2)
-    
+
     StatusLabel.Text = "Status: Selling..."
     if shopfish then shopfish.Visible = true end
     task.wait(1.5)
-    
+
     while #numberoffish:GetChildren() >= 2 do
         task.wait(0.4)
         clickScale(833, 430)
         task.wait(0.3)
         clickScale(676, 809)
         task.wait(0.3)
-        clickScale(825, 630) 
-        task.wait(0.1)  
-        clickScale(825, 600)   
-        
+        clickScale(825, 630)
+        task.wait(0.1)
+        clickScale(825, 600)
     end
     task.wait(0.2)
     fishCount = 0
     FishCounterLabel.Text = "🎣 FISH: 0"
     if shopfish then shopfish.Visible = false end
-    
+
     StatusLabel.Text = "Status: Returning to spot..."
     local spot = getBestFishSpot()
     if spot then
         smartMoveTo(spot)
     end
     selling = false
-	
 end
 
 local fishBiting = false
@@ -1375,76 +1378,6 @@ end)
 
 -------------------------MISC--------------------------------------
 
--- ================= CAMERA SYSTEM =================
-local camera = workspace.CurrentCamera
-local runService = game:GetService("RunService")
-
-local eggCamEnabled = false
-
-local currentZoom = 50
-local targetZoom = 50
-local minZoom = 20
-local maxZoom = 80
-
-local tiltFactor = 0.4
-local currentCFrame = camera.CFrame
-
--- FOLLOW
-runService.RenderStepped:Connect(function()
-	if not eggCamEnabled then return end
-	if not hrp then return end
-
-	currentZoom = currentZoom + (targetZoom - currentZoom) * 0.1
-	
-	local offset = Vector3.new(0, currentZoom, currentZoom * tiltFactor)
-
-	local target = CFrame.new(
-		hrp.Position + offset,
-		hrp.Position
-	)
-
-	currentCFrame = currentCFrame:Lerp(target, 0.15)
-
-	camera.CameraType = Enum.CameraType.Scriptable
-	camera.CFrame = currentCFrame
-end)
-
--- PC SCROLL
-UserInputService.InputChanged:Connect(function(input, gpe)
-	if gpe then return end
-	
-	if input.UserInputType == Enum.UserInputType.MouseWheel then
-		targetZoom = targetZoom - input.Position.Z * 5
-		targetZoom = math.clamp(targetZoom, minZoom, maxZoom)
-	end
-end)
-
--- MOBILE PINCH
-UserInputService.TouchPinch:Connect(function(_, scale, _, state)
-	if state == Enum.UserInputState.Change then
-		targetZoom = targetZoom - (scale - 1) * 50
-		targetZoom = math.clamp(targetZoom, minZoom, maxZoom)
-	end
-end)
-
-local camToggle = createToggle(MiscFrame, "CAMERA LIÊN QUÂN", 0.6, function(state)
-    eggCamEnabled = state
-
-    if state then
-        camera.CameraType = Enum.CameraType.Scriptable
-    else
-        camera.CameraType = Enum.CameraType.Custom
-    end
-end, false)
-
--- Toggle
-local pathduongdi = createToggle(MiscFrame, "HIỆN ĐƯỜNG ĐI", 0.0185, function(state)
-    showPathEnabled = state
-    if not state then
-        clearPath()
-    end
-end,true)
-
 -- ================= SPEED=================
 local boostEnabled = false
 local speedValue = 18
@@ -1475,6 +1408,12 @@ task.spawn(function()
 			end
         end
     end
+end)
+
+-- ================= REJOIN BUTTON =================
+createButton(MiscFrame, "🔄 REJOIN NOW", 0.05, function()
+    StatusLabel.Text = "Status: Rejoining..."
+    TeleportService:Teleport(game.PlaceId, player)
 end)
 
 -- ----------------------Anti-AFK----------------------------------
@@ -1563,8 +1502,7 @@ local function setupCharacter(char)
     lastClickTime = 0
     lastFinishClick = 0
 
-    -- Clear path + UI
-    clearPath()
+    -- Clear UI
     StatusLabel.Text = "Status: Respawned..."
 
     -- Stop mọi thứ cũ
@@ -1574,7 +1512,6 @@ local function setupCharacter(char)
     -- Khi chết
     humanoid.Died:Connect(function()
         stopObstacleJump()
-        clearPath()
         StatusLabel.Text = "Status: Died..."
     end)
 
