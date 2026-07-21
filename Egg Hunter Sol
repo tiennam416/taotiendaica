@@ -776,7 +776,7 @@ local function openShop()
     StatusLabel.Text = "Status: Going to shop..."
 
     local attempts = 0
-    while (hrp.Position - SHOP_POS).Magnitude > 8 and attempts < 6 do
+    while (hrp.Position - SHOP_POS).Magnitude > 3 and attempts < 6 do
         smartMoveTo(SHOP_POS)
         task.wait(0.3)
         attempts += 1
