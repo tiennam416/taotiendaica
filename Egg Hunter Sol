@@ -767,10 +767,9 @@ local function getBestFishSpot()
     return closest
 end
 
--- ✅ FIX: openShop giờ xác nhận thực sự đến gần shop rồi mới bán,
--- tránh trường hợp smartMoveTo bị fail/stuck nhưng vẫn mở shop bán "ảo".
+
 local function openShop()
-    if selling then return end
+    if selling then return end    
 
     selling = true
     StatusLabel.Text = "Status: Going to shop..."
@@ -794,7 +793,19 @@ local function openShop()
     if shopfish then shopfish.Visible = true end
     task.wait(1.5)
 
+    local sellStart = tick()
+    local SELL_TIMEOUT = 20
+
     while #numberoffish:GetChildren() >= 2 do
+    if tick() - sellStart >= SELL_TIMEOUT then
+        StatusLabel.Text = "Status: Sell timeout!"
+        break
+    end
+
+    if not autoFishEnabled or not humanoid or humanoid.Health <= 0 then
+        break
+    end
+
         task.wait(0.4)
         clickScale(833, 430)
         task.wait(0.3)
@@ -803,7 +814,6 @@ local function openShop()
         clickScale(825, 630)
         task.wait(0.1)
         clickScale(825, 600)
-
     end
     task.wait(0.2)
     fishCount = 0
