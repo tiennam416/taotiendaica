@@ -886,13 +886,7 @@ task.spawn(function()
             if diff > 0.008 then
                 if tick() - lastClickTime > 0.018 then
                     lastClickTime = tick()
-                    local absPos = movingBar.Parent.AbsolutePosition
-                    local absSize = movingBar.Parent.AbsoluteSize
-                    local x = absPos.X + absSize.X / 2
-                    local y = absPos.Y + (absSize.Y + 30) / 2;
-                    vim:SendMouseButtonEvent(x, y, 0, true, game, 0)
-                    task.wait(0.01)
-                    vim:SendMouseButtonEvent(x, y, 0, false, game, 0)
+                    clickGui(status)
                 end
             end
             StatusLabel.Text = "Status: Fishing..."
